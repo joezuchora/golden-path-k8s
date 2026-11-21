@@ -1,0 +1,22 @@
+# The kind cluster as a declarative Argo CD cluster Secret (D-023, F11). kind hosts both capabilities.
+# The annotations tell the placement ApplicationSets where the platform's Git source is and which profile's values to use.
+# The repo URL is derived from repo-coords.env (D-046); change it only with scripts/render-repo-coords.sh.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-in-cluster
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+    platform.example.org/hosts-control-plane: "true"
+    platform.example.org/hosts-workloads: "true"
+  annotations:
+    platform.example.org/profile: kind
+    platform.example.org/platform-repo: http://gitea-http.gitea.svc:3000/joezuchora/golden-path-k8s.git
+    platform.example.org/platform-revision: main
+    platform.example.org/git-base: http://gitea-http.gitea.svc:3000
+type: Opaque
+stringData:
+  name: in-cluster
+  server: https://kubernetes.default.svc
+  config: '{"tlsClientConfig":{"insecure":false}}'

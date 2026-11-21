@@ -1,0 +1,10 @@
+# A second reconcile: the server exists and reports its FQDN, so the connection Secret and PushSecret are composed.
+apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
+kind: FlexibleServer
+metadata:
+  name: orders-db
+  namespace: tenant-team-a-dev
+  annotations: {crossplane.io/composition-resource-name: server}
+spec: {forProvider: {}}
+status:
+  atProvider: {fqdn: tenant-team-a-dev-orders-db.postgres.database.azure.com}

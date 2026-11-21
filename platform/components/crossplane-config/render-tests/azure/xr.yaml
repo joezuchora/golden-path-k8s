@@ -1,0 +1,4 @@
+apiVersion: platform.example.org/v1
+kind: PostgreSQLInstance
+metadata: {name: orders-db, namespace: tenant-team-a-dev}
+spec: {storageGB: 1, version: "17"}

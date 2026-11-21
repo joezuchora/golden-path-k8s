@@ -1,0 +1,29 @@
+# Developers hold the built-in `view` role in their own namespaces (tenancy, D-025). `view` covers core and apps kinds
+# only, so the platform kinds a team needs to diagnose its own app (contract P3) are aggregated into it here: XRs, the
+# CloudNativePG cluster behind a local database, ExternalSecrets, HTTPRoutes, network policies and PolicyReports.
+# Read-only; Secrets stay excluded, as in `view`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-tenant-view
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules:
+  - apiGroups: [platform.example.org]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, watch]
+  - apiGroups: [external-secrets.io]
+    resources: [externalsecrets]
+    verbs: [get, list, watch]
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes]
+    verbs: [get, list, watch]
+  - apiGroups: [cilium.io]
+    resources: [ciliumnetworkpolicies]
+    verbs: [get, list, watch]
+  - apiGroups: [wgpolicyk8s.io]
+    resources: [policyreports]
+    verbs: [get, list, watch]

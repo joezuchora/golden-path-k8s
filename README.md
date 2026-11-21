@@ -6,8 +6,8 @@ versioned [Developer Contract](docs/developer-contract.md) (4 promises) is the s
 fulfill one promise, is measured against the CNCF capability domains, and names the AKS-native alternative it was
 weighed against.
 
-> **Status: Phase 2 of 6. The design and the contract are published; no platform code runs yet.** Quickstarts are
-> marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
+> **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
+> (`make e2e-all`); AKS is Phase 4.** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
 > [design evolution](docs/design-evolution.md).
 
 The 4 promises come from the AKS blog (F2, F16). **Cilium, Chainguard and Cosign are this repo's extensions; the blog
@@ -52,6 +52,8 @@ against, and why it wasn't chosen as the default.
 | P4 A safe way to ship | GitHub Container Registry (GHCR) | Free for a public repo; one registry for kind, CI and real-registry admission tests (D-031) | ACR + Defender (F16) needs Azure credentials from kind and CI | Artifact storage |
 | P4 A safe way to ship | Renovate | Base-digest bumps, each gated by the app's tests (D-019) | — | Automation for building and testing products |
 | P4 A safe way to ship | Argo CD (GitOps sync, per-team AppProjects, UI and notifications) | "You ship by merging a pull request" (F16); sync and health are scoped per team (D-025) | Argo CD or Flux extension (F16) | Automation for delivering and verifying services |
+| P4 A safe way to ship | git-feedback reporter (render failures → commit status) | A values file that doesn't render starts no sync, so Argo CD notifications can't report it; the reporter posts the chart error to the attempted commit (D-075, F50) | — | Automation for delivering and verifying services |
+| P4 A safe way to ship | Gitea (kind e2e Git host only) | The journeys open and merge real PRs and read the commit status Argo CD writes back, with no GitHub credentials (D-043, D-066) | — (on AKS the team's real Git host takes its place) | Automation for delivering and verifying services |
 | P4 A safe way to ship | Chainsaw e2e + `kyverno test` fitness checks | Each ADR is proven by a test, not by prose (ADR-0000) | — | Automation for delivering and verifying services |
 | P4 A safe way to ship | `golden-service` Helm chart 1.x | The app-facing contract surface (D-014, [ADR-0010](docs/adr/0010-contract-versioning.md)) | AKS Automatic defaults, which aren't portable ("The contract is portable, the defaults aren't.", F17) | Golden path templates and docs |
 | P4 A safe way to ship | Backstage software templates (Go, Python, .NET) | Asks only for `app` and `env`; everything else is derived (D-017) | None on AKS (F16) | Golden path templates and docs |
@@ -67,18 +69,18 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 | # | Domain | v1 status | Delivered by |
 |---|---|---|---|
 | 1 | Web portals for provisioning and observing capabilities | Designed | Backstage |
-| 2 | APIs for automatically provisioning capabilities | Designed | Crossplane v2 XRDs |
-| 3 | Golden path templates and docs | Designed | `golden-service` chart, Backstage templates, this contract |
-| 4 | Automation for building and testing products | Designed | `reusable-build-sign.yaml`, Renovate |
-| 5 | Automation for delivering and verifying services | Partial (no automated progressive delivery, D-032) | Argo CD, Chainsaw |
+| 2 | APIs for automatically provisioning capabilities | Partial: proven on kind (`local` composition, J4); `azure` validated and render-tested, live in Phase 4 | Crossplane v2 XRDs |
+| 3 | Golden path templates and docs | Partial: `golden-service` 1.0.0 proven on kind (J1–J4, network contract); Backstage templates in Phase 5 | `golden-service` chart, Backstage templates, this contract |
+| 4 | Automation for building and testing products | Partial: `reusable-build-sign` proven in CI (build-hello signs, attests and passes its own admission check); Renovate in Phase 6 | `reusable-build-sign.yaml`, Renovate |
+| 5 | Automation for delivering and verifying services | Partial: Argo CD, placement, Gitea and Chainsaw proven on kind (all suites); no automated progressive delivery (D-032) | Argo CD, Chainsaw |
 | 6 | Development environments | **Deferred** (D-033) | — |
-| 7 | Application observability | Partial (no aggregated logs or tracing, D-033) | Prometheus, Grafana, Hubble, OpenCost |
-| 8 | Infrastructure services | Designed | AKS, kind, Cilium, Gateway API, OpenTofu |
-| 9 | Data services | Designed (PostgreSQL only) | PostgreSQL compositions |
+| 7 | Application observability | Partial: `idp-diagnose.sh` (J3) and the label taxonomy (J1, J4) proven on kind; metrics, Grafana and OpenCost in Phase 6; no aggregated logs or tracing (D-033) | Prometheus, Grafana, Hubble, OpenCost |
+| 8 | Infrastructure services | Partial: kind, tenancy, Cilium and the Gateway proven on kind (placement, O1, network contract); AKS and OpenTofu in Phase 4 | AKS, kind, Cilium, Gateway API, OpenTofu |
+| 9 | Data services | Partial (PostgreSQL only): proven on kind with CloudNativePG (J4); Azure Flexible Server in Phase 4 | PostgreSQL compositions |
 | 10 | Messaging and event services | **Deferred** (D-033) | — |
-| 11 | Identity and secret services | Designed | Workload ID, ESO + Key Vault, cert-manager |
-| 12 | Security services | Designed | Kyverno, Cosign, Chainguard, Trivy, network policy, WAF |
-| 13 | Artifact storage | Designed | GHCR |
+| 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); Workload ID and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
+| 12 | Security services | Partial: the Kyverno policy set, Cosign keyless, Chainguard bases and the network baseline proven (`make test-policies`, J1, J2, network contract); WAF and ACNS in Phase 4, Trivy Operator in Phase 6 | Kyverno, Cosign, Chainguard, Trivy, network policy, WAF |
+| 13 | Artifact storage | Proven: GHCR (build-hello publishes; kind pulls the signed digest anonymously, F48) | GHCR |
 
 Maturity is assessed honestly (currently Provisional / Initial) against both the CNCF model and Microsoft's capability model:
 [docs/frameworks/maturity-self-assessment.md](docs/frameworks/maturity-self-assessment.md).
@@ -176,13 +178,21 @@ the blast-radius boundary. Kind is the one place the identity promise deviates (
 
 ## Quickstarts
 
-### kind: *Planned (Phase 3). These commands don't exist yet.*
+### Prerequisites
+
+Start with **[docs/getting-started.md](docs/getting-started.md)** and `make doctor`, which checks every prerequisite (D-056):
+a Linux-container engine with at least 8 GiB of memory, cgroup v2 and kernel 5.14 or later, bash 4 or later, GNU make 4 or
+later, and outbound HTTPS. `make tools` installs every other CLI at its pinned, checksum-verified version (D-048,
+[toolchain](docs/toolchain.md)).
+
+### kind: *Available (Phase 3).* The platform, the policy set and every journey run locally; see [journeys](docs/journeys/README.md).
 
 ```bash
+make doctor                      # prerequisites (PROFILE=local|docs|github|cloud|all)
 make kind-up                     # Docker required; on Windows use WSL2 or Git Bash
 make validate                    # static checks
-make test-policies               # kyverno test for every policy
-make e2e JOURNEY=<journey-dir>   # Chainsaw journey on kind
+make test-policies               # kyverno test for every policy (needs network: F35)
+make e2e JOURNEY=<journey-dir>   # one Chainsaw suite on kind; make e2e-all runs all seven
 make kind-down
 ```
 

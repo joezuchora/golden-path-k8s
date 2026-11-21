@@ -1,0 +1,32 @@
+# Gitea: the kind e2e Git host (D-043). kind only; on AKS the real Git host (GitHub) is used.
+# Single replica on SQLite with in-memory cache/session and a level queue, so it needs no Postgres or Valkey.
+# The admin password comes from the gitea-admin Secret that bootstrap.sh generates; nothing secret is committed.
+replicaCount: 1
+strategy: {type: Recreate}
+postgresql: {enabled: false}
+postgresql-ha: {enabled: false}
+valkey: {enabled: false}
+valkey-cluster: {enabled: false}
+persistence: {enabled: true, size: 2Gi}
+gitea:
+  admin:
+    existingSecret: gitea-admin
+    passwordMode: keepUpdated
+  config:
+    database: {DB_TYPE: sqlite3}
+    session: {PROVIDER: memory}
+    cache: {ADAPTER: memory}
+    queue: {TYPE: level}
+    server:
+      ROOT_URL: http://gitea-http.gitea.svc:3000/
+      DOMAIN: gitea-http.gitea.svc
+      DISABLE_SSH: true
+    service: {DISABLE_REGISTRATION: true}
+    repository: {DEFAULT_BRANCH: main, DEFAULT_PRIVATE: public}
+    # Gitea → Argo CD push webhooks target an in-cluster (private) address.
+    webhook: {ALLOWED_HOST_LIST: private}
+    actions: {ENABLED: false}
+    indexer: {REPO_INDEXER_ENABLED: false}
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {memory: 512Mi}

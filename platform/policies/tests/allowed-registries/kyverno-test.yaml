@@ -1,0 +1,11 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: allowed-registries}
+policies: [../.rendered/cluster.yaml]
+resources: [resources.yaml]
+variables: values.yaml
+userinfo: userinfo.yaml
+results:
+  - {policy: allowed-registries, resources: [pipeline-image], kind: Deployment, result: pass}
+  - {policy: allowed-registries, resources: [docker-hub], kind: Deployment, result: fail}
+  - {policy: allowed-registries, resources: [chainguard-direct], kind: Deployment, result: fail}

@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pipeline-image, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: a}}
+  template:
+    metadata: {labels: {app: a}}
+    spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: docker-hub, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: b}}
+  template:
+    metadata: {labels: {app: b}}
+    spec: {containers: [{name: app, image: "docker.io/library/nginx:1.29"}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: chainguard-direct, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: c}}
+  template:
+    metadata: {labels: {app: c}}
+    spec: {containers: [{name: app, image: "cgr.dev/chainguard/static@sha256:8658e9eaeb2294fa0e49b0667f7d66b4e21fa7690b8d2a4c30cd1d013ceb9eb7"}]}

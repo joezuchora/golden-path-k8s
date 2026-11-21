@@ -1,0 +1,38 @@
+# Contract P1: app-specific L3/L4 allows on top of the namespace baseline (default deny, DNS, ingress from the gateway).
+{{- $hasRules := or .Values.network.allowFromApps .Values.network.allowToApps (and .Values.dependencies.postgres (eq .Values.platform.dependencyEgress "inCluster")) }}
+{{- if $hasRules }}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.app }}
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      platform.example.org/app: {{ .Values.app }}
+  {{- with .Values.network.allowFromApps }}
+  ingress:
+    {{- range . }}
+    - fromEndpoints: [{matchLabels: {platform.example.org/app: {{ .app }}}}]
+      toPorts: [{ports: [{port: {{ .port | quote }}, protocol: TCP}]}]
+    {{- end }}
+  {{- end }}
+  {{- if or .Values.network.allowToApps (and .Values.dependencies.postgres (eq .Values.platform.dependencyEgress "inCluster")) }}
+  egress:
+    {{- range .Values.network.allowToApps }}
+    - toEndpoints: [{matchLabels: {platform.example.org/app: {{ .app }}}}]
+      toPorts: [{ports: [{port: {{ .port | quote }}, protocol: TCP}]}]
+    {{- end }}
+    {{- if eq .Values.platform.dependencyEgress "inCluster" }}
+    {{- range .Values.dependencies.postgres }}
+    # The composed database (local composition: CloudNativePG in tenant-<team>-<env>, labeled by the composition).
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: tenant-{{ $.Release.Namespace }}
+            platform.example.org/dependency: {{ . }}
+      toPorts: [{ports: [{port: "5432", protocol: TCP}]}]
+    {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

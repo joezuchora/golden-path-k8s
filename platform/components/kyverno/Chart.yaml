@@ -1,0 +1,9 @@
+apiVersion: v2
+name: kyverno
+description: Platform component wrapper (placement D-023). The dependency version must equal tools/versions.env.
+type: application
+version: 0.1.0
+dependencies:
+  - name: kyverno
+    repository: https://kyverno.github.io/kyverno/
+    version: 3.9.2

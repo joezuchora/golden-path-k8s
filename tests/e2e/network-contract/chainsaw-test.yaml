@@ -1,0 +1,13 @@
+# Platform check: network contract v1 (Developer Contract P1/P2, ADR-0003). Same suite on kind, byo AKS and managed AKS.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: network-contract
+spec:
+  timeouts: {exec: 20m}
+  steps:
+    - name: route features, policy semantics and controller versions
+      try:
+        - script: {timeout: 20m, content: bash ./contract.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}

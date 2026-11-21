@@ -1,0 +1,7 @@
+# Chainguard runtime bases whose digests admission accepts in an image's base-image attestation (ADR-0005, D-026).
+# reusable-build-sign verifies the base's Chainguard signature before building; this list says which verified digests
+# the platform currently accepts. Renovate owns the bumps (D-019, Phase 6); a bump is a reviewed PR.
+admission:
+  verifiedBases:
+    - name: cgr.dev/chainguard/static
+      digest: sha256:8658e9eaeb2294fa0e49b0667f7d66b4e21fa7690b8d2a4c30cd1d013ceb9eb7

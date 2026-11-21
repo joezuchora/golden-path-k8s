@@ -1,0 +1,13 @@
+# Journey J2: a rejected change tells you how to fix it (docs/journeys/j2-rejected-change.md). Exit criterion 4.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: j2-rejected-change
+spec:
+  timeouts: {exec: 15m}
+  steps:
+    - name: a denied image and a denied manifest each reach Git with what, why, fix and docs
+      try:
+        - script: {timeout: 15m, content: bash ./rejected.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}

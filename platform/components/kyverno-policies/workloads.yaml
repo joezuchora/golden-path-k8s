@@ -1,0 +1,2 @@
+component: kyverno-policies
+namespace: kyverno

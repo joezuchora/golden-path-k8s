@@ -1,0 +1,3 @@
+gatewayClassName: cilium
+domain: apps.kind.test
+selfSignedCA: true

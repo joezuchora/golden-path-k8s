@@ -1,0 +1,7 @@
+# The requester admission sees: Argo CD's application controller, which applies every team manifest (no kubectl, D-025).
+apiVersion: cli.kyverno.io/v1alpha1
+kind: UserInfo
+metadata: {name: argocd}
+userInfo:
+  username: system:serviceaccount:argocd:argocd-application-controller
+  groups: [system:serviceaccounts, system:serviceaccounts:argocd, system:authenticated]

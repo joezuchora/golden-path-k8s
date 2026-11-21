@@ -1,0 +1,12 @@
+# Chainsaw configuration for every e2e suite (make e2e JOURNEY=<dir>, make e2e-all). Suites run serially: they share
+# one kind platform and the Gitea repos.
+apiVersion: chainsaw.kyverno.io/v1alpha2
+kind: Configuration
+metadata:
+  name: golden-path
+spec:
+  timeouts: {apply: 30s, assert: 5m, cleanup: 3m, delete: 3m, error: 1m, exec: 10m}
+  execution: {parallel: 1, failFast: true}
+  discovery: {fullName: true}
+  cleanup: {skipDelete: false}
+  report: {format: JUNIT-TEST, name: chainsaw-report, path: .e2e-reports}

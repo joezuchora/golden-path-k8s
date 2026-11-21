@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: derived, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: d}}
+  template:
+    metadata: {labels: {app: d}}
+    spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matching
+  namespace: team-a-dev
+  labels: {platform.example.org/team: team-a, platform.example.org/owner: team-a-oncall}
+spec:
+  selector: {matchLabels: {app: m}}
+  template:
+    metadata: {labels: {app: m}}
+    spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: override
+  namespace: team-a-dev
+  labels: {platform.example.org/team: team-a, platform.example.org/cost-center: cc-9999}
+spec:
+  selector: {matchLabels: {app: o}}
+  template:
+    metadata: {labels: {app: o}}
+    spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}

@@ -1,0 +1,13 @@
+# Journey J3: an unhealthy rollout shows the next action (docs/journeys/j3-unhealthy-rollout.md). Exit criterion 5.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: j3-unhealthy-rollout
+spec:
+  timeouts: {exec: 15m}
+  steps:
+    - name: a bad config rolls out Degraded; Git and idp-diagnose name the step and the next action
+      try:
+        - script: {timeout: 15m, content: bash ./unhealthy.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}

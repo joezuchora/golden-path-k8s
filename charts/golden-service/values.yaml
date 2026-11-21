@@ -1,0 +1,50 @@
+# golden-service 1.x values (Developer Contract v1). Team, owner, cost center and tags are NOT values: Kyverno copies them
+# from the namespace (ADR-0007, D-017), and values.schema.json rejects them.
+
+# --- Required ---
+app: ""              # DNS label; also the ServiceAccount name (ADR-0008 federation subject)
+env: ""              # dev | test | prod (must match the namespace's env)
+image: ""            # <registry>/<repo>@sha256:<digest>, built by reusable-build-sign.yaml@v1
+
+# --- Runtime ---
+port: 8080
+replicas: 2
+progressDeadlineSeconds: 120   # a rollout that isn't Available by then is Degraded in Argo CD (journey J3)
+args: []
+extraEnv: {}         # NAME: value
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {memory: 128Mi}
+probes:
+  readinessPath: /readyz
+  livenessPath: /healthz
+
+# --- HTTPS route (contract P2 feature set v1, D-027) ---
+route:
+  enabled: true
+  host: ""                     # default: <app>-<team>-<env>.<platform.domain>; an override must keep the -<team>-<env> suffix (route-hostnames)
+  pathPrefix: /
+  headerMatches: []            # feature 3: [{name: x-canary, value: "true"}]
+  requestHeaders: {set: {}, add: {}, remove: []}    # feature 5
+  responseHeaders: {set: {}, add: {}, remove: []}   # feature 5
+canary:                        # feature 4: weighted backends, a manual canary through Git (D-032)
+  enabled: false
+  image: ""
+  weight: 10                   # percent of traffic to the canary
+
+# --- Dependencies (contract P1): XR names in tenant-<team>-<env>; each gets an ExternalSecret, env vars and egress ---
+dependencies:
+  postgres: []                 # [orders-db]: at most one in v1; its credentials arrive as DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME
+
+# --- Network (contract P1): L3/L4 allows by app label and port, on top of the namespace's default deny ---
+network:
+  allowFromApps: []            # [{app: frontend, port: 8080}] (same namespace)
+  allowToApps: []              # [{app: backend, port: 8080}] (same namespace)
+
+# --- Set by the platform per profile (values-<profile>.yaml); not for app teams ---
+platform:
+  domain: ""
+  gateway: {namespace: platform-gateway, name: platform, sectionName: https}
+  secretStore: platform        # namespaced SecretStore rendered by tenancy (Key Vault on AKS, local store on kind)
+  dependencyEgress: inCluster  # inCluster (kind: CloudNativePG in the tenant namespace) | none (AKS: Phase 4)
+  contractVersion: "1.0"

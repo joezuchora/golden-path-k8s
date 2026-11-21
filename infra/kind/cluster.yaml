@@ -1,0 +1,13 @@
+# kind profile (D-002, D-016): one cluster that is both control and workload cluster.
+# No default CNI and no kube-proxy: Cilium provides both, with the same values as cilium_mode=byo (ADR-0003).
+# The node image is set by infra/kind/bootstrap.sh from tools/versions.env (KIND_NODE_IMAGE).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: golden-path
+networking:
+  disableDefaultCNI: true
+  kubeProxyMode: none
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-rbac
+description: Platform configuration (placement D-023), rendered from templates/.
+type: application
+version: 0.1.0

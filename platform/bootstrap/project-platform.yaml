@@ -1,0 +1,11 @@
+# The platform team's AppProject: platform components and tenancy renders. App teams never get this project (D-025).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Platform components (placement ApplicationSets) and tenancy renders
+  sourceRepos: ["*"]
+  destinations: [{server: "*", namespace: "*"}]
+  clusterResourceWhitelist: [{group: "*", kind: "*"}]

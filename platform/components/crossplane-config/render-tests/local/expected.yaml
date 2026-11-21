@@ -1,0 +1,147 @@
+---
+apiVersion: platform.example.org/v1
+kind: PostgreSQLInstance
+metadata:
+  name: orders-db
+  namespace: tenant-team-a-dev
+spec:
+  crossplane:
+    resourceRefs:
+    - apiVersion: external-secrets.io/v1alpha1
+      kind: PushSecret
+      name: orders-db
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      name: orders-db
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: cluster, connection'
+    reason: Creating
+    status: "False"
+    type: Ready
+  connectionSecret: orders-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: cluster
+  labels:
+    crossplane.io/composite: orders-db
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/dependency: orders-db
+    platform.example.org/env: dev
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/team: team-a
+  name: orders-db
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: PostgreSQLInstance
+    name: orders-db
+    uid: 1941328a-a0f6-509d-a942-c5b78995e804
+spec:
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  enableSuperuserAccess: false
+  inheritedMetadata:
+    labels:
+      platform.example.org/contract-version: "1.0"
+      platform.example.org/cost-center: cc-1001
+      platform.example.org/data-classification: internal
+      platform.example.org/dependency: orders-db
+      platform.example.org/env: dev
+      platform.example.org/owner: team-a-oncall
+      platform.example.org/team: team-a
+  instances: 1
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  storage:
+    size: 1Gi
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: connection
+  labels:
+    crossplane.io/composite: orders-db
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/dependency: orders-db
+    platform.example.org/env: dev
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/team: team-a
+  name: orders-db
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: PostgreSQLInstance
+    name: orders-db
+    uid: 1941328a-a0f6-509d-a942-c5b78995e804
+spec:
+  data:
+  - match:
+      remoteRef:
+        property: host
+        remoteKey: orders-db
+      secretKey: host
+  - match:
+      remoteRef:
+        property: port
+        remoteKey: orders-db
+      secretKey: port
+  - match:
+      remoteRef:
+        property: dbname
+        remoteKey: orders-db
+      secretKey: dbname
+  - match:
+      remoteRef:
+        property: username
+        remoteKey: orders-db
+      secretKey: username
+  - match:
+      remoteRef:
+        property: password
+        remoteKey: orders-db
+      secretKey: password
+  deletionPolicy: Delete
+  refreshInterval: 10s
+  secretStoreRefs:
+  - kind: SecretStore
+    name: vault
+  selector:
+    secret:
+      name: orders-db-app
+  template:
+    data:
+      dbname: app
+      host: orders-db-rw.tenant-team-a-dev.svc.cluster.local
+      password: '{{ .password }}'
+      port: "5432"
+      username: '{{ .username }}'
+    engineVersion: v2
+  updatePolicy: Replace

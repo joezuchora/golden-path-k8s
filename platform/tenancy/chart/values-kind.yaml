@@ -1,0 +1,6 @@
+# kind profile (D-055): accept this repo's branch refs as signer and caller, so the platform PR proves itself on kind.
+admission:
+  acceptPlatformBranchRefs: true
+# kind stand-in for Key Vault (D-064).
+secrets:
+  backend: kubernetes

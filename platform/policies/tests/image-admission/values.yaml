@@ -1,0 +1,9 @@
+# The namespace the test resources live in, as tenancy renders it (namespaceSelector input for kyverno test).
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Values
+metadata: {name: values}
+namespaceSelector:
+  - name: team-a-dev
+    labels:
+      platform.example.org/team: team-a
+      platform.example.org/env: dev

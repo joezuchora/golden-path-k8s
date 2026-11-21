@@ -1,0 +1,16 @@
+# Root application: the only Argo CD Application applied by hand (by the bootstrap). It syncs platform/appsets, which
+# render everything else from the cluster Secret's capability labels.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-root
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: http://gitea-http.gitea.svc:3000/joezuchora/golden-path-k8s.git
+    targetRevision: main
+    path: platform/appsets
+  destination: {server: https://kubernetes.default.svc, namespace: argocd}
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}

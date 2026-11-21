@@ -1,0 +1,87 @@
+{{- $p := .Values.compositionProvider }}
+{{- if not (has $p (list "local" "azure")) }}{{ fail "compositionProvider must be local or azure (values-<profile>.yaml)" }}{{ end }}
+# Composition functions (ADR-0011): one templating language for every composition, plus readiness from conditions.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata: {name: function-go-templating}
+spec: {package: {{ .Values.functions.goTemplating }}}
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata: {name: function-auto-ready}
+spec: {package: {{ .Values.functions.autoReady }}}
+---
+# XRD v1 (contract v1 surface, D-014). Namespaced, no claims (D-024). No team, owner, cost-center or tag fields: tags are
+# derived from the XR's Namespace by the composition (ADR-0007, D-017). The composition is enforced per profile, so an
+# app team can't pick a backend; the API is identical on kind and AKS.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresqlinstances.platform.example.org
+spec:
+  group: platform.example.org
+  names: {kind: PostgreSQLInstance, plural: postgresqlinstances}
+  scope: Namespaced
+  enforcedCompositionRef: {name: postgresqlinstance-{{ $p }}}
+  defaultCompositeDeletePolicy: Foreground
+  versions:
+    - name: v1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: A PostgreSQL database for one app. Connection details arrive in the app's namespace as a Secret (ADR-0002).
+          properties:
+            spec:
+              type: object
+              properties:
+                storageGB:
+                  type: integer
+                  minimum: 1
+                  maximum: 64
+                  default: 1
+                  description: Storage in GiB.
+                version:
+                  type: string
+                  enum: ["17"]
+                  default: "17"
+                  description: PostgreSQL major version.
+            status:
+              type: object
+              properties:
+                connectionSecret:
+                  type: string
+                  description: The key in the team's secret store that holds the connection details.
+{{- range $path, $_ := .Files.Glob (printf "compositions/%s/*.yaml" $p) }}
+---
+{{ $.Files.Get $path }}
+{{- end }}
+---
+# Crossplane composes CloudNativePG clusters (local, D-053) and ESO PushSecrets (connection delivery, ADR-0002) directly,
+# so its service account needs these kinds (F27), and reads Namespaces for tags.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-compose-platform
+  labels: {rbac.crossplane.io/aggregate-to-crossplane: "true"}
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: ["*"]
+  - apiGroups: [external-secrets.io]
+    resources: [pushsecrets]
+    verbs: ["*"]
+  # Compositions read the XR's Namespace (ExtraResources) to derive tags (ADR-0007, F36).
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch]
+{{- if eq $p "azure" }}
+{{- range .Values.azure.providers }}
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata: {name: {{ regexReplaceAll ":.*$" (base .) "" }}}
+spec: {package: {{ . }}}
+{{- end }}
+{{- end }}

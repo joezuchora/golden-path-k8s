@@ -284,7 +284,8 @@ else
       if printf '%s' "$log" | grep -qiE 'parse error|syntax error|lexical error|Expecting'; then
         echo "     - $(basename "$b"): $(printf '%s' "$log" | grep -iE 'error' | head -2 | tr '\n' ' ')"; merr=$((merr+1))
       else
-        echo "     - $(basename "$b"): CLI could not run: $(printf '%s' "$log" | tail -1)"; unverified=$((unverified+1))
+        printf '     - %s: CLI could not run\n%s\n' "$(basename "$b")" "$log"
+        unverified=$((unverified+1))
       fi
     fi
   done

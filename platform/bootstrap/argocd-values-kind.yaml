@@ -1,0 +1,16 @@
+# kind profile (D-043, D-050).
+configs:
+  cm:
+    # kind identity substitute (D-050): one local account per test team, bound to its AppProject role through the role's
+    # `groups`. On AKS these are Entra groups. New teams on kind get an account here; the authorization rules are unchanged.
+    accounts.team-a: apiKey
+    accounts.team-b: apiKey
+notifications:
+  notifiers:
+    service.webhook.git: |
+      url: http://gitea-http.gitea.svc:3000/api/v1
+      headers:
+        - name: Authorization
+          value: token $git-token
+        - name: Content-Type
+          value: application/json

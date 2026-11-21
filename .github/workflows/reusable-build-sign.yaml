@@ -1,0 +1,171 @@
+# reusable-build-sign.yaml@v1: the only pipeline whose images admission accepts (contract v1 surface, ADR-0005, D-026).
+#   1. verify the Chainguard base's signature (F5 identity) and pin its digest
+#   2. build with exactly that base digest, then prove the image's layers start with the base's layers (D-069)
+#   3. scan (fixable High/Critical fails the build)
+#   4. sign keyless: the certificate's Build Signer URI is this workflow's ref
+#   5. attest: SPDX SBOM, SLSA v1 provenance (caller repo/ref from the run context, never from inputs, D-055) and a
+#      base-image predicate holding the digest proven in step 2
+# Signatures and attestations use cosign's legacy .sig/.att format with a Rekor entry: the form Kyverno 1.19.2 verifies
+# (F35, F41). Every action is pinned by commit SHA; cosign is checksum-verified against tools/checksums.lock.
+#
+# Input boundary (D-069): no caller-controlled value (inputs, refs, actor) is expanded into a script with ${{ }}. Every one
+# reaches the shell through `env:` and is quoted there, and the inputs are validated before use. `make validate` rejects
+# `${{` inside a `run:` block of this file, except for the `secrets` and `steps` contexts this job produces itself.
+name: reusable-build-sign
+on:
+  workflow_call:
+    inputs:
+      context: {description: Build context (directory with the Dockerfile), type: string, required: true}
+      image-name: {description: "Image name under ghcr.io/<owner>/<repo>/ (e.g. hello)", type: string, required: true}
+    outputs:
+      image: {description: "The pushed image, by digest", value: "${{ jobs.build.outputs.image }}"}
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write      # push to GHCR (D-031)
+      id-token: write      # keyless signing (Fulcio)
+      attestations: write
+    outputs:
+      image: ${{ steps.out.outputs.image }}
+    env:
+      COSIGN_VERSION: v3.1.4
+      COSIGN_SHA256: 424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa   # = tools/checksums.lock linux-amd64
+      TRIVY_IMAGE: ghcr.io/aquasecurity/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+      CHAINGUARD_SUBJECT: https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+      COSIGN_LEGACY: --new-bundle-format=false --use-signing-config=false
+      BUILDER_ID: https://github.com/joezuchora/golden-path-k8s/.github/workflows/reusable-build-sign.yaml
+      # Caller-controlled values, passed as data, never as script text.
+      IN_CONTEXT: ${{ inputs.context }}
+      IN_IMAGE_NAME: ${{ inputs.image-name }}
+      GH_REPOSITORY: ${{ github.repository }}
+      GH_SERVER: ${{ github.server_url }}
+      GH_REF: ${{ github.ref }}
+      GH_SHA: ${{ github.sha }}
+      GH_WORKFLOW_REF: ${{ github.workflow_ref }}
+      GH_EVENT: ${{ github.event_name }}
+      GH_RUN: ${{ github.run_id }}
+      GH_ATTEMPT: ${{ github.run_attempt }}
+      GH_ACTOR: ${{ github.actor }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+
+      - name: Validate inputs
+        run: |
+          [[ "$IN_IMAGE_NAME" =~ ^[a-z0-9][a-z0-9._-]{0,62}$ ]] || { echo "::error::image-name must match ^[a-z0-9][a-z0-9._-]{0,62}\$"; exit 1; }
+          [[ "$IN_CONTEXT" =~ ^[A-Za-z0-9._/-]+$ && "$IN_CONTEXT" != *..* && "$IN_CONTEXT" != /* ]] \
+            || { echo "::error::context must be a relative path inside the repository"; exit 1; }
+          [ -f "$IN_CONTEXT/Dockerfile" ] || { echo "::error::no Dockerfile in context"; exit 1; }
+          echo "IMAGE_REPO=ghcr.io/${GH_REPOSITORY,,}/$IN_IMAGE_NAME" >>"$GITHUB_ENV"
+
+      - name: Install cosign (checksum-verified)
+        run: |
+          curl -fsSLo /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
+          echo "${COSIGN_SHA256}  /usr/local/bin/cosign" | sha256sum -c -
+          chmod +x /usr/local/bin/cosign && cosign version | grep GitVersion
+
+      - name: "1. Verify the Chainguard base and pin its digest"
+        id: base
+        run: |
+          base="$(sed -n 's/^ARG BASE_IMAGE=//p' "$IN_CONTEXT/Dockerfile")"
+          [[ "$base" =~ ^cgr\.dev/chainguard/[a-z0-9._-]+(:[a-z0-9._-]+)?@sha256:[0-9a-f]{64}$ ]] \
+            || { echo "::error::BASE_IMAGE must be cgr.dev/chainguard/<image>:latest@sha256:<digest>"; exit 1; }
+          cosign verify --certificate-identity "$CHAINGUARD_SUBJECT" --certificate-oidc-issuer "$OIDC_ISSUER" "$base" >/dev/null
+          echo "Verified base $base"
+          { echo "ref=$base"; echo "name=${base%@*}"; echo "digest=${base#*@}"; } >>"$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
+
+      - name: "2. Build and push with exactly the verified base"
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.context }}
+          push: true
+          provenance: false     # provenance is attested below with cosign, in the format admission verifies
+          sbom: false
+          build-args: |
+            BASE_IMAGE=${{ steps.base.outputs.ref }}
+            VERSION=${{ github.sha }}
+          tags: ${{ env.IMAGE_REPO }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.base.name=${{ steps.base.outputs.name }}
+            org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
+
+      - name: Image reference
+        id: out
+        env: {DIGEST: "${{ steps.build.outputs.digest }}"}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::unexpected digest '$DIGEST'"; exit 1; }
+          echo "image=$IMAGE_REPO@$DIGEST" >>"$GITHUB_OUTPUT"
+
+      - name: "2b. Prove the runtime base: the image's layers must start with the verified base's layers"
+        # The Dockerfile could ignore BASE_IMAGE in its final stage; the attested base is then only a claim. Comparing the
+        # uncompressed layer digests (RootFS diff IDs) proves the published image is the verified base plus app layers.
+        # Builder stages aren't covered: they don't ship (stated in docs/policies/image-admission.md).
+        env: {IMAGE: "${{ steps.out.outputs.image }}", BASE: "${{ steps.base.outputs.ref }}"}
+        run: |
+          docker pull -q --platform linux/amd64 "$BASE" >/dev/null && docker pull -q --platform linux/amd64 "$IMAGE" >/dev/null
+          base_layers="$(docker image inspect --format '{{range .RootFS.Layers}}{{println .}}{{end}}' "$BASE")"
+          image_layers="$(docker image inspect --format '{{range .RootFS.Layers}}{{println .}}{{end}}' "$IMAGE")"
+          n="$(printf '%s\n' "$base_layers" | grep -c .)"
+          if [ "$n" -gt 0 ] && [ "$(printf '%s\n' "$image_layers" | head -n "$n")" = "$(printf '%s\n' "$base_layers" | head -n "$n")" ]; then
+            echo "Runtime base proven: the image's first $n layer(s) are $BASE"
+          else
+            echo "::error::the image's layers don't start with the verified base $BASE (does the final stage use FROM \${BASE_IMAGE}?)"; exit 1
+          fi
+
+      - name: "3. Scan: fixable High/Critical fails the build"
+        env: {IMAGE: "${{ steps.out.outputs.image }}", TRIVY_PASSWORD: "${{ secrets.GITHUB_TOKEN }}"}
+        run: |
+          docker run --rm -e TRIVY_USERNAME="$GH_ACTOR" -e TRIVY_PASSWORD "$TRIVY_IMAGE" \
+            image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL --no-progress "$IMAGE"
+          docker run --rm -e TRIVY_USERNAME="$GH_ACTOR" -e TRIVY_PASSWORD "$TRIVY_IMAGE" \
+            image --format spdx-json --no-progress "$IMAGE" >sbom.spdx.json
+
+      - name: "4. Sign keyless"
+        env: {IMAGE: "${{ steps.out.outputs.image }}"}
+        run: cosign sign --yes $COSIGN_LEGACY "$IMAGE"
+
+      - name: "5. Attest SBOM, provenance and base image"
+        env:
+          IMAGE: ${{ steps.out.outputs.image }}
+          BASE_NAME: ${{ steps.base.outputs.name }}
+          BASE_DIGEST: ${{ steps.base.outputs.digest }}
+        run: |
+          # Caller repo and ref come from the run context of the calling workflow, not from inputs (D-055).
+          jq -n --arg repo "$GH_SERVER/$GH_REPOSITORY" --arg ref "$GH_REF" --arg sha "$GH_SHA" --arg wf "$GH_WORKFLOW_REF" \
+                --arg builder "$BUILDER_ID" --arg run "$GH_SERVER/$GH_REPOSITORY/actions/runs/$GH_RUN/attempts/$GH_ATTEMPT" \
+                --arg event "$GH_EVENT" '{
+            buildDefinition: {
+              buildType: "https://platform.example.org/build/reusable-build-sign/v1",
+              externalParameters: {workflow: {repository: $repo, ref: $ref, path: $wf}},
+              internalParameters: {github: {event_name: $event}},
+              resolvedDependencies: [{uri: ("git+" + $repo + "@" + $ref), digest: {gitCommit: $sha}}]
+            },
+            runDetails: {builder: {id: $builder}, metadata: {invocationId: $run}}
+          }' >provenance.json
+          jq -n --arg name "$BASE_NAME" --arg digest "$BASE_DIGEST" '{name: $name, digest: $digest}' >base-image.json
+          cat provenance.json base-image.json
+          cosign attest --yes $COSIGN_LEGACY --type spdxjson --predicate sbom.spdx.json "$IMAGE"
+          cosign attest --yes $COSIGN_LEGACY --type slsaprovenance1 --predicate provenance.json "$IMAGE"
+          cosign attest --yes $COSIGN_LEGACY --type https://platform.example.org/attestations/base-image/v1 --predicate base-image.json "$IMAGE"
+
+      - name: Summary
+        env: {IMAGE: "${{ steps.out.outputs.image }}", BASE: "${{ steps.base.outputs.ref }}"}
+        run: |
+          {
+            echo "### Signed image"
+            echo "\`$IMAGE\`"
+            echo "Base: \`$BASE\` (Chainguard signature verified; layers proven)"
+          } >>"$GITHUB_STEP_SUMMARY"

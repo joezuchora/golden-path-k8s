@@ -1,0 +1,14 @@
+# Pinned CLIs installed by `make tools` (D-048)
+.bin/
+
+# Chainsaw JUnit reports (make e2e)
+.e2e-reports/
+
+# Policies rendered by scripts/test-policies.sh for kyverno test
+platform/policies/tests/.rendered/
+
+# Helm dependency downloads (helm dependency build); Chart.lock pins them
+platform/components/*/charts/
+
+# kind kubeconfig used by the Makefile
+.kube/

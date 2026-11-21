@@ -1,0 +1,11 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: image-admission}
+# Online (F35): verifies real signatures and attestations in GHCR and Rekor.
+policies: [../.rendered/team-a-kind.yaml]
+resources: [resources.yaml]
+variables: values.yaml
+userinfo: userinfo.yaml
+results:
+  - {policy: image-admission-team-a, resources: [signed], kind: Pod, result: pass}
+  - {policy: image-admission-team-a, resources: [unsigned], kind: Pod, result: fail}

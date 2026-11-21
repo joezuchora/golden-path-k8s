@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: good, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: good}}
+  template:
+    metadata: {labels: {app: good}}
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: no-limits, namespace: team-a-dev}
+spec:
+  selector: {matchLabels: {app: no-limits}}
+  template:
+    metadata: {labels: {app: no-limits}}
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          resources: {requests: {cpu: 50m, memory: 64Mi}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: no-requests, namespace: team-a-dev}
+spec:
+  containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]

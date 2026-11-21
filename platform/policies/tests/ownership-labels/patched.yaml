@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: derived
+  namespace: team-a-dev
+  labels:
+    platform.example.org/team: team-a
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+spec:
+  selector: {matchLabels: {app: d}}
+  template:
+    metadata:
+      labels:
+        app: d
+        platform.example.org/team: team-a
+        platform.example.org/owner: team-a-oncall
+        platform.example.org/cost-center: cc-1001
+        platform.example.org/data-classification: internal
+    spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}

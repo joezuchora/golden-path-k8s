@@ -1,0 +1,14 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: ownership-labels}
+policies: [../.rendered/team-a-kind.yaml]
+resources: [resources.yaml]
+variables: values.yaml
+userinfo: userinfo.yaml
+results:
+  # validate: derived labels may be absent or equal; an override is rejected
+  - {policy: ownership-labels-team-a, resources: [derived, matching], kind: Deployment, result: pass}
+  - {policy: ownership-labels-team-a, resources: [override], kind: Deployment, result: fail}
+  # mutate: missing labels (object and pod template) are copied from the team definition
+  - {policy: derive-labels-team-a, resources: [derived], kind: Deployment, patchedResources: patched.yaml, result: pass}
+  - {policy: derive-labels-pods-team-a, resources: [derived], kind: Deployment, patchedResources: patched.yaml, result: pass}

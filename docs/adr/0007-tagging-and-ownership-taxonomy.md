@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run · P3 A way to see what it's doing
 - **CNCF capability domain(s):** Infrastructure services; Application observability
-- **Related decisions:** D-010, D-017, D-028
+- **Related decisions:** D-010, D-017, D-028, D-044, D-055, D-063
 
 ## Context
 Cost allocation (OpenCost, Azure cost analysis), ownership (Backstage `spec.owner`), paging (who answers at
@@ -43,7 +43,7 @@ teams/<team>.yaml ──► tenancy render ──► namespace labels (control t
                                               ▼
               Kyverno mutate: copy namespace labels onto every object; validate: reject overrides
                                               │
-        Crossplane composition (function-extra-resources reads the XR's Namespace)
+        Crossplane composition (go-templating ExtraResources reads the XR's Namespace, D-044)
                                               ▼
               Azure tags on every composed resource + per-tenant RG  ◄── Azure Policy: require + inherit
                                               │
@@ -54,7 +54,7 @@ teams/<team>.yaml ──► tenancy render ──► namespace labels (control t
 |---|---|
 | Namespaces | Rendered from the team definition by tenancy; namespace labels are platform-owned (Kyverno blocks tenant edits) |
 | Kubernetes objects | Kyverno mutates namespace labels onto objects and rejects conflicting values; the `golden-service` chart sets `app` |
-| Azure resources | Crossplane compositions read the XR's Namespace (`function-extra-resources`) and stamp every tag; XRD schemas have no tag fields, so a developer can't override them; Azure Policy requires the tags at the RG |
+| Azure resources | Crossplane compositions read the XR's Namespace (go-templating `ExtraResources`, D-044) and stamp every tag; XRD schemas have no tag fields, so a developer can't override them; Azure Policy requires the tags at the RG |
 | Backstage | The template asks only for `app` and `env` and takes `spec.owner` from the catalog group, which is synced from the team definitions |
 | OpenCost | Label-based allocation (`team`, `app`, `env`, `cost-center`) for in-cluster spend; Azure cloud-cost integration uses the same tag keys for out-of-cluster spend |
 

@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P4 A safe way to ship
 - **CNCF capability domain(s):** Security services; Artifact storage; Automation for building and testing products
-- **Related decisions:** D-008 (Revisited), D-026, D-014, D-019, D-031
+- **Related decisions:** D-008 (Revisited), D-026 (Revisited → D-042: same binding, CEL policy API, ADR-0012), D-014, D-019, D-031, D-055, D-058, D-059, D-063
 
 ## Context
 Vulnerability scanning finds known CVEs but proves nothing about where an image came from or what it was
@@ -49,8 +49,11 @@ only, and public images are signed keyless by Chainguard's GitHub release workfl
      using `attestations` conditions on its repository and ref fields. The deprecated extensions are not relied on.
   3. **Base**: the `base-image` attestation's digest must be in the set of Chainguard digests the platform has
      verified (maintained by Renovate). A `cgr.dev/` prefix alone isn't enough.
-  - `mutateDigest` pins references to digests. Any `cgr.dev` image deployed directly is verified against the
-    Chainguard identity.
+  - `mutateDigest` pins references to digests. ~~Any `cgr.dev` image deployed directly is verified against the
+    Chainguard identity.~~ Narrowed by D-058: app namespaces admit only pipeline-built images, and the Chainguard base is
+    checked inside each image through its base-image attestation.
+  - Signatures and attestations use cosign's legacy `.sig`/`.att` format with a Rekor entry, and every new image is
+    checked against the rendered admission policy in CI before any cluster sees it (D-059).
 - **Failure mode: fail closed.** Kyverno's docs don't state a default for an unreachable registry or Rekor (F15), so the
   policy sets `failurePolicy: Fail` explicitly. New or changed pods are rejected while verification is unavailable;
   running pods are unaffected. Kyverno caches only *successful* verifications (default TTL 60m, max 1000 entries), so

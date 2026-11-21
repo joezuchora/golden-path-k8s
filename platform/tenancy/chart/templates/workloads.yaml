@@ -1,0 +1,76 @@
+{{- include "tenancy.validate" . }}
+{{- if eq .Values.capability "workloads" }}
+{{- range $env := .Values.envs }}
+{{- $ns := printf "%s-%s" $.Values.team $env }}
+---
+# P1: one namespace per team per env, labels platform-owned (ADR-0007). Pod Security "restricted" is enforced.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "tenancy.labels" $ | nindent 4 }}
+    platform.example.org/env: {{ $env }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# Developers read their own namespaces only (view: no Secrets, no writes; fixes go through Git, D-025).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $.Values.team }}-developers-view
+  namespace: {{ $ns }}
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: {{ $.Values.groups.developers | quote }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: view}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: {{ $ns }}
+spec:
+  hard:
+    requests.cpu: {{ $.Values.quota.cpu | quote }}
+    requests.memory: {{ $.Values.quota.memory | quote }}
+    limits.memory: {{ $.Values.quota.memory | quote }}
+    pods: {{ $.Values.quota.pods | quote }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: {{ $ns }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: 50m, memory: 64Mi}
+      default: {memory: 256Mi}
+---
+# P1 network boundary (D-021, D-029): default-deny ingress and egress; DNS to kube-dns; ingress only from the gateway.
+# App-specific L3/L4 allows are rendered by the golden-service chart.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: baseline
+  namespace: {{ $ns }}
+spec:
+  endpointSelector: {}
+  ingress:
+    {{- with $.Values.gatewayIngress.fromEntities }}
+    - fromEntities: {{ toJson . }}
+    {{- end }}
+    {{- with $.Values.gatewayIngress.fromEndpoints }}
+    - fromEndpoints: {{ toJson . }}
+    {{- end }}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports: [{port: "53", protocol: UDP}, {port: "53", protocol: TCP}]
+{{- end }}
+{{- end }}
