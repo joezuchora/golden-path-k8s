@@ -1,6 +1,7 @@
 # Getting started: prerequisites and setup
 
-Everything here is checked by one command, `make doctor` (D-056). If the doctor passes, the commands it gates will run. If a
+Everything here is checked by one command, `make doctor` (D-056). Problems people have already hit, and their fixes, are in
+[known issues](known-issues.md); what comes next is in the [roadmap](../ROADMAP.md). If the doctor passes, the commands it gates will run. If a
 step here and the doctor disagree, the doctor is right, and this page has a bug.
 
 | You want to | Profile | Status |
@@ -17,7 +18,7 @@ step here and the doctor disagree, the doctor is right, and this page has a bug.
 | Host | Shell | Container engine | Status |
 |---|---|---|---|
 | Windows 11 (amd64) | Git Bash, or a WSL2 distro | Docker Desktop, WSL 2 backend | Tested (Windows 11, WSL kernel 6.18, Docker 29.9, Git Bash 5.3, GNU Make 4.4.1) |
-| Linux (amd64, arm64) | bash | Docker Engine | Lock entries present for both; not yet run end to end |
+| Linux (amd64, arm64) | bash | Docker Engine | amd64 tested on every PR (GitHub's Ubuntu 24.04 runner runs `make kind-up` and every suite); arm64 not yet run end to end |
 | macOS (Apple Silicon, Intel) | bash ≥ 4 | Docker Desktop | Lock entries present for both; not yet run end to end |
 
 The kind project states that it "is not able to provide support with Windows and WSL" (F37). This repo tests Windows itself,

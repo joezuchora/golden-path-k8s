@@ -11,6 +11,7 @@
 #   3 links       relative links and anchors resolve; external URLs answer 2xx/3xx (skip with OFFLINE=1).
 #   4 mermaid     every ```mermaid block renders with a pinned mermaid-cli. If the CLI can't run, the result is
 #                 UNVERIFIED, which fails the gate.
+#   6 references  every repo path and `make` target named in a current doc exists (history docs are excluded).
 #   5 log         D-IDs are unique and sequential; every "Revisited → D-x" target exists and the revisited decision
 #                 is in design-evolution.md; the ADR files and the ADR index match one to one.
 #
@@ -229,6 +230,43 @@ for i in sorted(files - idx_ids):
 for i in sorted(idx_ids - files):
     errs.append(f"index row {i} has no ADR file")
 report(f"5 log integrity ({len(nums)} decisions, {len(fnums)} facts, {len(files)} ADRs)", errs)
+
+# ---- 6 repo references
+# Current docs must describe the repo as it is: every repo path and `make` target they name must exist. History (ADRs,
+# design-evolution, the dated platform review) is excluded, and so is any line about a later phase.
+errs = []
+current = [f for f in md_files if not (f.startswith("docs/adr/") or f in ("docs/design-evolution.md", "docs/platform-review.md"))]
+roots = ("platform/", "charts/", "infra/", "tests/", "scripts/", "tools/", "apps/", "docs/", ".github/")
+mk = read("Makefile")
+targets = set(re.findall(r"^([a-z0-9][a-z0-9-]*):", mk, re.M))
+npath = ntarget = 0
+for f in current:
+    fence = False
+    for ln, line in enumerate(read(f).splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        if re.search(r"Phase [4-9]|arrives in|planned|Planned", line):
+            continue
+        for tok in re.findall(r"`([^`\s]+)`", line):
+            tok = tok.rstrip(".,;:)")
+            if tok.startswith("platform/argocd/"):
+                continue  # a commit-status context (platform/argocd/<application>), not a path
+            if tok.startswith(roots) or tok in ("Makefile", "repo-coords.env", "ROADMAP.md", "CLAUDE.md"):
+                if re.search(r"[<>*{}$|]", tok):
+                    continue  # a pattern or placeholder, not a path
+                npath += 1
+                if not os.path.exists(tok.split("#")[0].rstrip("/") or "."):
+                    errs.append(f"{f}:{ln}: names `{tok}`, which doesn't exist")
+        # make targets: only inside backticks or code blocks, where they are commands rather than prose.
+        cmds = re.findall(r"`make ([a-z0-9][a-z0-9-]*)[^`]*`", line)
+        if fence:
+            cmds += re.findall(r"^\s*make ([a-z0-9][a-z0-9-]*)", line)
+        for t in cmds:
+            ntarget += 1
+            if t not in targets:
+                errs.append(f"{f}:{ln}: names `make {t}`, which isn't a Makefile target")
+report(f"6 repo references ({npath} paths, {ntarget} make targets in {len(current)} current docs)", errs)
 
 for k, v in results.items():
     print(("FAIL " if v else "PASS ") + k)

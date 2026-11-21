@@ -69,6 +69,27 @@ lb_pool() {
   sed -e "s/172\.18\./$prefix./g" "$ROOT/platform/components/cilium/lb-pool-kind.yaml" | k apply -f -
 }
 
+converge() {
+  # kind-up returns a platform, not a promise: wait until the root app has rendered every ApplicationSet's Applications
+  # and all of them are Synced and Healthy. Without this, a suite run first on a fresh cluster races the tenancy render
+  # (O1 saw no RoleBindings yet, D-077).
+  step "wait for the platform to converge (every Argo CD Application Synced and Healthy)"
+  local want=0 n bad deadline=$((SECONDS + ${CONVERGE_TIMEOUT:-900}))
+  want=$(( $(ls "$ROOT"/platform/components/*/control-plane.yaml "$ROOT"/platform/components/*/workloads.yaml | wc -l) \
+           + 2 * $(ls "$ROOT"/platform/tenancy/teams/*.yaml | wc -l) ))
+  while :; do
+    n="$(k -n argocd get applications -l platform.example.org/capability -o name 2>/dev/null | wc -l | tr -d ' ')"
+    bad="$(k -n argocd get applications -o jsonpath='{range .items[*]}{.metadata.name}={.status.sync.status}/{.status.health.status}{"\n"}{end}' 2>/dev/null \
+      | grep -v '=Synced/Healthy$' || true)"
+    if [ "$n" -ge "$want" ] && [ -z "$bad" ]; then echo "converged: $n platform Applications Synced/Healthy"; return 0; fi
+    if [ $SECONDS -ge $deadline ]; then
+      echo "FAIL: not converged after ${CONVERGE_TIMEOUT:-900}s ($n of $want platform Applications rendered). Not yet Synced/Healthy:"
+      echo "${bad:-none}" | sed 's/^/  /'; return 1
+    fi
+    sleep 10
+  done
+}
+
 gitea() {
   step "Gitea $GITEA_CHART_VERSION (kind Git host, D-043)"
   k create namespace gitea --dry-run=client -o yaml | k apply -f - >/dev/null
@@ -97,7 +118,7 @@ gitops() {
 
 case "${1:-up}" in
   preflight) preflight ;;
-  up) preflight; cluster; gateway_api; cilium; gitea; argocd; seed_git; gitops; step "kind-up done (Argo CD now reconciles the platform from Gitea)"; k get nodes -o wide ;;
+  up) preflight; cluster; gateway_api; cilium; gitea; argocd; seed_git; gitops; converge; step "kind-up done (the platform has converged; Argo CD reconciles it from Gitea)"; k get nodes -o wide ;;
   sync-git) argocd; seed_git ;;   # after a local change: re-apply Argo CD's bootstrap-owned values, push the tracked tree to Gitea
   down) kind delete cluster --name "$CLUSTER" ;;
   *) echo "usage: $0 up|down|preflight|sync-git"; exit 2 ;;

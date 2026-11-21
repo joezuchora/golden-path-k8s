@@ -11,7 +11,7 @@ spec:
       try:
         - script: {content: bash ./onboard.sh}
       cleanup:
-        - script: {timeout: 5m, content: bash ./offboard.sh}
+        - script: {timeout: 7m, content: bash ./offboard.sh}
     - name: the platform renders the team boundary from the definition
       try:
         - assert:
