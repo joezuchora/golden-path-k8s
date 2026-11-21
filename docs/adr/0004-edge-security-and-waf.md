@@ -2,9 +2,9 @@
 
 - **Status:** Proposed
 - **Date:** 2026-11-20
-- **Contract promise:** P2 An identity (+ network path, this repo's extension)
+- **Contract promise:** P2 An identity (the edge of the HTTPS URL; the WAF is this repo's extension)
 - **CNCF capability domain(s):** Security services
-- **Related decisions:** D-007
+- **Related decisions:** D-007, D-029
 
 ## Context
 Public HTTPRoutes need TLS (cert-manager with Let's Encrypt) and DNS (ExternalDNS). Production services usually

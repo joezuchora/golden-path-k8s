@@ -3,14 +3,14 @@
 - **Status:** Proposed
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run · P4 A safe way to ship
-- **CNCF capability domain(s):** Infrastructure services; Automation for delivering and verifying
+- **CNCF capability domain(s):** Infrastructure services; Automation for delivering and verifying services
 - **Related decisions:** D-002, D-005, D-023
 
 ## Context
 Crossplane holds credentials that can create and delete cloud resources. Argo CD holds credentials that can
 deploy to every cluster. Running both next to tenant workloads widens the blast radius and ties their
 upgrade cadence to the apps'. The AKS blog recommends a Standard control cluster (Crossplane or kro plus
-GitOps, patch upgrade channel, private API server) and separate workload clusters. On a laptop, Backstage,
+GitOps, patch upgrade channel, private API server) and separate workload clusters, which it runs on AKS Automatic (F17). On a laptop, Backstage,
 Argo CD, Crossplane and Prometheus together need about 8–10 GB of RAM.
 
 ## Decision drivers
@@ -25,7 +25,7 @@ Argo CD, Crossplane and Prometheus together need about 8–10 GB of RAM.
 | (a) Single cluster | Cheapest, simplest | Crossplane and Argo CD credentials share a cluster with tenant workloads; one upgrade cadence |
 | **(b) Control + workload clusters, Argo CD as the hub** | Clear isolation; matches the blog | About one extra cluster of cost; cluster-secret management |
 | **AKS-native:** (c) Fleet Manager hub + member clusters | Managed staged upgrades and resource placement | Still needs a GitOps and Crossplane home; more Azure-specific |
-| **AKS-native:** (d) AKS Automatic workload clusters | Managed defaults, Deployment Safeguards | Managed Cilium only: conflicts with `cilium_mode = byo` (ADR-0003) |
+| **AKS-native:** (d) AKS Automatic workload clusters | Managed defaults, Deployment Safeguards | Default CNI is Azure CNI Overlay powered by Cilium, and "Bring your own CNI" is documented only for Standard (F23), so `cilium_mode = byo` (ADR-0003) isn't a documented option |
 
 ## Decision
 Option (b) on AKS: one control cluster plus one workload cluster. On kind it collapses to one cluster.

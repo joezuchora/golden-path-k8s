@@ -2,8 +2,8 @@
 
 - **Status:** Proposed | Accepted | Revisited → ADR-NNNN | Superseded by ADR-NNNN
 - **Date:** YYYY-MM-DD
-- **Contract promise:** P1 A place to run · P2 An identity (+ network path) · P3 A way to see what it's doing · P4 A safe way to ship
-- **CNCF capability domain(s):** <from the CNCF Platforms White Paper's 13 domains>
+- **Contract promise:** P1 A place to run (incl. the network-policy boundary) · P2 An identity (incl. the HTTPS URL) · P3 A way to see what it's doing · P4 A safe way to ship
+- **CNCF capability domain(s):** <exact names from the CNCF Platforms White Paper's 13-row "Capabilities of platforms" table (F18)>
 - **Related decisions:** D-xxx
 
 ## Context
