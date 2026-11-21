@@ -15,7 +15,8 @@ unship() {
     n="$(pr_delete_file "$1/deploy" "remove-$2-$3-$(date +%s)" "apps/$2/$3.yaml" "Remove $2 from $3")"
     pr_merge "$1/deploy" "$n" >/dev/null
   fi
-  kubectl -n argocd delete application "$1-$2-$3" --ignore-not-found --wait=true --timeout=180s >/dev/null
+  # One Application per workload cluster in the env's group (<team>-<app>-<env>-<cluster>, D-079): select by label.
+  kubectl -n argocd delete application -l "platform.example.org/team=$1,platform.example.org/app=$2,platform.example.org/env=$3"     --ignore-not-found --wait=true --timeout=180s >/dev/null
 }
 # wait_app <name> <sync> <health> [timeout s]
 wait_app() {

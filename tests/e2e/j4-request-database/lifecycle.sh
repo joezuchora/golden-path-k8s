@@ -29,7 +29,7 @@ echo "== 2-3. the app declares the dependency; its readiness probe queries the d
 printf 'app: hello\nenv: dev\nimage: %s\nreplicas: 1\ndependencies: {postgres: [orders-db]}\n' "$HELLO_SIGNED" >/tmp/j4app.$$
 ship team-a hello dev /tmp/j4app.$$ j4-hello-db >/dev/null; rm -f /tmp/j4app.$$
 waitfor "ExternalSecret hello-orders-db-db synced into $A" 300 "[ \"\$(kubectl -n $A get externalsecret hello-orders-db-db -o jsonpath='{.status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null)\" = True ]"
-wait_app team-a-hello-dev Synced Healthy 420 || fail=1
+wait_app team-a-hello-dev-in-cluster Synced Healthy 420 || fail=1
 client_up
 out="$(wait_http hello-team-a-dev.apps.kind.test /readyz 200 180 || true)"
 check "readiness is a real query through the brokered credential: /readyz says '$out'" "[[ \"$out\" == *'database query ok'* ]]"

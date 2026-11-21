@@ -1,4 +1,5 @@
-# The kind cluster as a declarative Argo CD cluster Secret (D-023, F11). kind hosts both capabilities.
+# The kind cluster as a declarative Argo CD cluster Secret (D-023, F11). kind hosts both capabilities and is the only
+# cluster in the "shared" workload group.
 # The annotations tell the placement ApplicationSets where the platform's Git source is and which profile's values to use.
 # The repo URL is derived from repo-coords.env (D-046); change it only with scripts/render-repo-coords.sh.
 apiVersion: v1
@@ -10,6 +11,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
     platform.example.org/hosts-control-plane: "true"
     platform.example.org/hosts-workloads: "true"
+    # Workload group (D-079): team apps are assigned to clusters by group, from teams/<team>.yaml (default "shared").
+    platform.example.org/workload-group: shared
   annotations:
     platform.example.org/profile: kind
     platform.example.org/platform-repo: http://gitea-http.gitea.svc:3000/joezuchora/golden-path-k8s.git

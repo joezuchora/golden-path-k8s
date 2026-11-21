@@ -49,7 +49,8 @@ for d in "$T"/*/; do
   out="$(kyverno test "$d" --remove-color 2>&1)"; rc=$?
   echo "$out" | grep -E '│|Summary|ERROR|Error' | grep -vE '^\s*$'
   summary="$(echo "$out" | grep -E 'Test Summary: [0-9]+ tests passed and [0-9]+ tests failed' | tail -1)"
-  passed="$(echo "$summary" | awk '{print $3}')"; failed="$(echo "$summary" | awk '{print $8}')"
+  # "Test Summary: <p> tests passed and <f> tests failed": p is field 3, f is field 7.
+  passed="$(echo "$summary" | awk '{print $3}')"; failed="$(echo "$summary" | awk '{print $7}')"
   if [ $rc -ne 0 ] || [ -z "$summary" ] || [ "${passed:-0}" -eq 0 ] || [ "${failed:-1}" -ne 0 ]; then
     echo "FAIL $name: ${summary:-no test summary} (exit $rc)"; fail=1
   else echo "PASS $name: $passed cases"; fi

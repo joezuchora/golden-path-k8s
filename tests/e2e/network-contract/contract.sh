@@ -40,9 +40,9 @@ replicas: 1
 ' "$HELLO_SIGNED" >/tmp/nc-other.$$
 ship team-b api dev /tmp/nc-api.$$ nc-api >/dev/null; ship team-b web dev /tmp/nc-web.$$ nc-web >/dev/null
 ship team-b other dev /tmp/nc-other.$$ nc-other >/dev/null; rm -f /tmp/nc-*.$$
-wait_app team-b-api-dev Synced Healthy 420 || fail=1
-wait_app team-b-web-dev Synced Healthy 420 || fail=1
-wait_app team-b-other-dev Synced Healthy 420 || fail=1
+wait_app team-b-api-dev-in-cluster Synced Healthy 420 || fail=1
+wait_app team-b-web-dev-in-cluster Synced Healthy 420 || fail=1
+wait_app team-b-other-dev-in-cluster Synced Healthy 420 || fail=1
 client_up
 # --- PROFILE (kind): hostnames, CA and pins. AKS profiles replace this block in Phase 4. ---
 DOMAIN=apps.kind.test; CILIUM_PIN=v1.20.4; GATEWAY_API_PIN=v1.6.3

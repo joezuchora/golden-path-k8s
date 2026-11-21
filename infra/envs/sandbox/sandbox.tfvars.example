@@ -1,0 +1,17 @@
+# Copy to sandbox.auto.tfvars (gitignored) and fill in. Every value here is confirmed with the environment owner before
+# the first apply: subscription, region, owner, expiry and the operator's egress IP (D-083, D-084).
+subscription_id                 = "00000000-0000-0000-0000-000000000000"
+location                        = "eastus2"
+environment_id                  = "gp01"
+teardown_owner                  = "you@example.com"
+expires_on                      = "2026-11-30"
+platform_cost_center            = "cc-platform"
+api_server_authorized_ip_ranges = ["203.0.113.10/32"] # your egress IP: curl -s https://api.ipify.org
+
+# Optional (defaults shown):
+# cilium_mode         = "managed"   # byo after managed passes (ADR-0003)
+# enable_acns         = false       # L7/FQDN add-on on managed (D-021), opt-in
+# kubernetes_version  = "1.37"
+# vm_size             = "Standard_D4as_v5"
+# workload_clusters   = { wl1 = { group = "shared" } }
+# teams               = ["team-a"]

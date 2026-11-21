@@ -49,6 +49,9 @@ spec:
             - {name: global.platform.gitBase, value: '{{ index .metadata.annotations "platform.example.org/git-base" }}'}
             - {name: global.platform.platformRepo, value: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'}
             - {name: global.platform.platformRevision, value: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'}
+            - {name: global.platform.deployRepoTemplate, forceString: true, value: '{{ index .metadata.annotations "platform.example.org/deploy-repo-template" | default "" }}'}
+          # Per-environment platform values that aren't in Git (AKS: the tenants' Key Vaults and ESO identities, D-081).
+          values: '{{ index .metadata.annotations "platform.example.org/tenancy-values" | default "" }}'
       destination:
         server: '{{ .server }}'
         namespace: argocd

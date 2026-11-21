@@ -77,11 +77,54 @@ rules:
     resources: [namespaces]
     verbs: [get, list, watch]
 {{- if eq $p "azure" }}
+{{- /* Workload Identity for the providers (D-081, D-083): no stored credential. Terraform creates one UAMI for Crossplane and
+federates it to each provider's service account by name (system:serviceaccount:crossplane-system:<provider>), so each
+provider gets a DeploymentRuntimeConfig that fixes its service account's name. The IDs come from the cluster Secret's
+platform-values annotation (global.azure), written by infra/aks/aks.sh; they never live in Git. */}}
+{{- $az := .Values.global.azure }}
+{{- range $k := list "tenantId" "subscriptionId" "crossplaneClientId" }}
+{{- if not (index $az $k) }}{{ fail (printf "compositionProvider=azure needs global.azure.%s (cluster Secret annotation platform.example.org/platform-values, written by infra/aks/aks.sh bootstrap)" $k) }}{{ end }}
+{{- end }}
 {{- range .Values.azure.providers }}
+{{- $prov := regexReplaceAll ":.*$" (base .) "" }}
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata: {name: {{ $prov }}}
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: {{ $prov }}
+      annotations:
+        azure.workload.identity/client-id: {{ $az.crossplaneClientId | quote }}
+        azure.workload.identity/tenant-id: {{ $az.tenantId | quote }}
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        metadata:
+          labels: {azure.workload.identity/use: "true"}
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
-metadata: {name: {{ regexReplaceAll ":.*$" (base .) "" }}}
-spec: {package: {{ . }}}
+metadata: {name: {{ $prov }}}
+spec:
+  package: {{ . }}
+  runtimeConfigRef: {name: {{ $prov }}}
 {{- end }}
+---
+# Every azure composition uses this one (namespaced MRs, D-024). The token file is the one the AKS workload identity
+# webhook projects into pods labeled azure.workload.identity/use.
+apiVersion: azure.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+  # Its CRD arrives with the provider package, after this chart first syncs; Argo CD's retry applies it once it exists.
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  credentials: {source: OIDCTokenFile}
+  oidcTokenFilePath: /var/run/secrets/azure/tokens/azure-identity-token
+  clientID: {{ $az.crossplaneClientId | quote }}
+  tenantID: {{ $az.tenantId | quote }}
+  subscriptionID: {{ $az.subscriptionId | quote }}
 {{- end }}

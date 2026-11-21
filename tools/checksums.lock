@@ -4,7 +4,6 @@ helm v4.3.1 windows-amd64 helm-v4.3.1-windows-amd64.zip fcfd7b796dcf0f225abc40b5
 kyverno v1.19.2 windows-amd64 kyverno-cli_v1.19.2_windows_x86_64.zip c787cd56d2c2571e5470b1d070fff851c05d104513fcf5cb1652021bb187a1f6
 chainsaw v0.2.15 windows-amd64 chainsaw_windows_amd64.tar.gz 02e7d519c4e815c89dc8a4b14e2b70474d5301f514e721c0e5b3062f67294229
 crossplane v2.4.0 windows-amd64 crossplane-cli.tar.gz b8e741da2bfb40e7396858525a2053f6e1789df5bd4480c71bfc45e1744e185d
-tofu v1.13.9 windows-amd64 tofu_1.13.9_windows_amd64.zip b23a811741911baa829aa7d3d3718626c549e8934546822b0e9b99b9fba75e4e
 tflint v0.65.0 windows-amd64 tflint_windows_amd64.zip 292e760adf0e9c7e0f10ddeb0f6add67fd6d2c68b5449fdf766ff6ffddce465c
 kubeconform v0.8.0 windows-amd64 kubeconform-windows-amd64.zip e3f56102bcf4f50b034a567e2482a1c5330799983ddd655952310211aef73d93
 cosign v3.1.4 windows-amd64 cosign-windows-amd64.exe cbe953787074611f1334cbf37dc1cf953995bb8c45398eb4fc7bb781d29c1f2a
@@ -18,7 +17,6 @@ helm v4.3.1 linux-amd64 helm-v4.3.1-linux-amd64.tar.gz 0403a88ae20913d11b10a2467
 kyverno v1.19.2 linux-amd64 kyverno-cli_v1.19.2_linux_x86_64.tar.gz 357eaf1df8bc24ddd5a73979fadeaae6a032e8710f11af264229756e4956bf4a
 chainsaw v0.2.15 linux-amd64 chainsaw_linux_amd64.tar.gz 295d226c89f126c0a97775d364be149f47a810c8a3f9829ee410583d0c1abe3c
 crossplane v2.4.0 linux-amd64 crossplane-cli.tar.gz 07369bc02fcf6ca0833e5b70354673492905c2916826073c1cd8214bf3f791d1
-tofu v1.13.9 linux-amd64 tofu_1.13.9_linux_amd64.zip bc44eb6b06446ba83bd4072114891987f590f66cca712737a7f1147c50c539ce
 tflint v0.65.0 linux-amd64 tflint_linux_amd64.zip d4c545ed2e29d6338604b586f34f544f380f70f243aa72f7b484713835eaec61
 kubeconform v0.8.0 linux-amd64 kubeconform-linux-amd64.tar.gz 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
 cosign v3.1.4 linux-amd64 cosign-linux-amd64 424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa
@@ -32,7 +30,6 @@ helm v4.3.1 linux-arm64 helm-v4.3.1-linux-arm64.tar.gz 8cf8f66ecbc252ac8f7f06cca
 kyverno v1.19.2 linux-arm64 kyverno-cli_v1.19.2_linux_arm64.tar.gz 250f2a02f143d5c6425e686b13c130d3a3ba7372dba6a7210d599d1b0dd12e92
 chainsaw v0.2.15 linux-arm64 chainsaw_linux_arm64.tar.gz fecf5f3ea74d11da2cd5d95a4c016d5d2543cbc4844ce21adf5e727e7ffd9e44
 crossplane v2.4.0 linux-arm64 crossplane-cli.tar.gz 14d8f5cc251bf847ce8d04215e981102f383475663120cc7da741c15975b4bf5
-tofu v1.13.9 linux-arm64 tofu_1.13.9_linux_arm64.zip 04f7c93828b859d420269ed30f923ffebf09157b5d7fb95bf8d88a4d208b7fa3
 tflint v0.65.0 linux-arm64 tflint_linux_arm64.zip 843017c47a98be1de4d88fa038daa293770fe25cd01656c4f08b2e30d1d3b3a0
 kubeconform v0.8.0 linux-arm64 kubeconform-linux-arm64.tar.gz 1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87
 cosign v3.1.4 linux-arm64 cosign-linux-arm64 ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2
@@ -46,7 +43,6 @@ helm v4.3.1 darwin-amd64 helm-v4.3.1-darwin-amd64.tar.gz 34bec4eba761ba5c16d1965
 kyverno v1.19.2 darwin-amd64 kyverno-cli_v1.19.2_darwin_x86_64.tar.gz b645654ab8e65bd4aa64de9228e274b388bab19b3404a4e9af70174b3d5ad230
 chainsaw v0.2.15 darwin-amd64 chainsaw_darwin_amd64.tar.gz ddb56002ff8c6265f55ec40c82eb0ef0dddec5127dd12d4fc5e7953453481f4b
 crossplane v2.4.0 darwin-amd64 crossplane-cli.tar.gz fc040a8f50e3bc9a41428cc222d58509a73db580101facba19685da6854aac2d
-tofu v1.13.9 darwin-amd64 tofu_1.13.9_darwin_amd64.zip ac5505dd19d896f327d0ab727d4b853413c694931a7602b31f93c3a3e9d46d00
 tflint v0.65.0 darwin-amd64 tflint_darwin_amd64.zip 27696ea23ed77c1918945147ebfe6485a74f58560b9557ccecc77379205702c5
 kubeconform v0.8.0 darwin-amd64 kubeconform-darwin-amd64.tar.gz 71dbc87ac9f24099a62b93570e65aa06312ba6ac8aea63b7f86e9d999edf5a92
 cosign v3.1.4 darwin-amd64 cosign-darwin-amd64 9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f
@@ -60,7 +56,6 @@ helm v4.3.1 darwin-arm64 helm-v4.3.1-darwin-arm64.tar.gz 6b4e61c8cd27d99e5a801e6
 kyverno v1.19.2 darwin-arm64 kyverno-cli_v1.19.2_darwin_arm64.tar.gz 7915c03c613c22363a100adb3da8d06f2e2626d9d21a98b97f921795ffdc536f
 chainsaw v0.2.15 darwin-arm64 chainsaw_darwin_arm64.tar.gz 502bef17dd822217e82590e9ccf01c1e26a56b3fa34a835789b9af73e82a169a
 crossplane v2.4.0 darwin-arm64 crossplane-cli.tar.gz 6ce7a145016bfc05cd2f4587ff1914968441a1252594e662223c7af2113ad5cf
-tofu v1.13.9 darwin-arm64 tofu_1.13.9_darwin_arm64.zip 29ba2f4c78556a8d25476e5070fe4745495ef649c4a3b827170eb7436d23feb3
 tflint v0.65.0 darwin-arm64 tflint_darwin_arm64.zip 5a71c63481ba56760864298011fdb7317a9ae80a0bbaeceefa35883c7f62ac71
 kubeconform v0.8.0 darwin-arm64 kubeconform-darwin-arm64.tar.gz f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
 cosign v3.1.4 darwin-arm64 cosign-darwin-arm64 9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4
@@ -68,3 +63,13 @@ jq jq-1.8.2 darwin-arm64 jq-macos-arm64 2d75340ba57a4b4b4c8708a21c2dc8e958a48aaa
 yq v4.54.2 darwin-arm64 yq_darwin_arm64 34923a7ca09a32a4257702ced5f7f2e5e83b16968cce3866f5ff830e4ce1cdd4
 cilium v0.20.2 darwin-arm64 cilium-darwin-arm64.tar.gz 944c388f71b939e0befa405422c93d5fcbd574e4dd12c4bf01244858961d79de
 argocd v3.6.1 darwin-arm64 argocd-darwin-arm64 2e4a88082bfcb25dd56369ed9fe807d941ce1d916efb5a080eea6ac00347dfdf
+kubelogin v0.2.22 windows-amd64 kubelogin-win-amd64.zip 62839abfdaddc35dc460bfe1d40f2c569c168b7aa090e2c831776e84f95402b9
+kubelogin v0.2.22 linux-amd64 kubelogin-linux-amd64.zip 716cbcb1880bca8f0e976b8917d06fcfe04de2c1e737eaaabbb26e2782330119
+kubelogin v0.2.22 linux-arm64 kubelogin-linux-arm64.zip 306a31d80af443d06fb71e04d2feaf65a6c9cf2e7e806e87b895b77fe2093ea6
+kubelogin v0.2.22 darwin-amd64 kubelogin-darwin-amd64.zip 6f4a17811e5d5815bb005daae5dabce3d016c2caac84a097f1db4263344f113e
+kubelogin v0.2.22 darwin-arm64 kubelogin-darwin-arm64.zip b586d6409d578f2048053a6117ace47f0154f36c5beb6792c674679987a7efc8
+terraform v1.17.1 windows-amd64 terraform_1.17.1_windows_amd64.zip a3b71365cff94c0f978cf75d86addb075ea1bb6409055ea0ab359bf057d7898a
+terraform v1.17.1 linux-amd64 terraform_1.17.1_linux_amd64.zip 4638628058e71a55212b1c563712eac03b902128f40740f3dc8174df12135061
+terraform v1.17.1 linux-arm64 terraform_1.17.1_linux_arm64.zip 988e950a1c23058093b0e66ab2d5fb53fc18345ecfbd5871acf51dbac9325edd
+terraform v1.17.1 darwin-amd64 terraform_1.17.1_darwin_amd64.zip fde92387cf9c0de74255003c85291f8fbede54585c10d0635ca7a43633d4d171
+terraform v1.17.1 darwin-arm64 terraform_1.17.1_darwin_arm64.zip b1ecb3fe0d0a0290c1ab6f83d967d43f25da05d0b671ee0fb355252268dce95a

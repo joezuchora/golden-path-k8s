@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run · P4 A safe way to ship
 - **CNCF capability domain(s):** Infrastructure services; Automation for delivering and verifying services
-- **Related decisions:** D-002, D-005, D-023, D-060
+- **Related decisions:** D-002, D-005, D-023, D-060, D-079, D-078, D-085
 
 ## Context
 Crossplane holds credentials that can create and delete cloud resources. Argo CD holds credentials that can
@@ -40,6 +40,11 @@ Argo CD's default local cluster has no Secret, so label selectors can't match it
   observability).
 - The kind Secret sets both labels; the AKS control and workload Secrets set one each. ApplicationSets select on
   one capability label each and never on cluster names.
+- **Team apps (D-079, Phase 4):** each env is assigned to a workload group in the team file; cluster Secrets carry
+  `platform.example.org/workload-group`, the team's app ApplicationSet selects `hosts-workloads` plus the group, and
+  Application names carry the cluster, so two clusters in a group can't collide.
+- **On the split (D-078, D-085):** External Secrets also runs on a control-only cluster (`external-secrets-push`) for
+  the PushSecrets, and Argo CD reaches workload clusters with Workload Identity, so the hub stores no spoke credential.
 
 ## Consequences
 - Positive: Crossplane and cloud credentials never exist on workload clusters, and the platform can be upgraded first.

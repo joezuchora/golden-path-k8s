@@ -7,7 +7,8 @@ fulfill one promise, is measured against the CNCF capability domains, and names 
 weighed against.
 
 > **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
-> (`make e2e-all`); AKS is Phase 4.** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
+> (`make e2e-all`); Phase 4 (AKS) is in progress: Terraform and the cloud preflight are built and validated locally, with no live
+> Azure run yet ([tracker](docs/adr/README.md#phase-4-exit-criteria-tracker-d-087)).** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
 > [design evolution](docs/design-evolution.md). What comes next: [roadmap](ROADMAP.md); gotchas already solved:
 > [known issues](docs/known-issues.md).
 
@@ -29,7 +30,7 @@ against, and why it wasn't chosen as the default.
 | P1 A place to run | PostgreSQL compositions (`azure`: Flexible Server; `local`: CloudNativePG) | One XRD API with two backends; "Ready" means the app connects, survives rotation, and cleans up (D-024) | Azure Database for PostgreSQL through ASO, with no abstraction layer | Data services |
 | P1 A place to run | Cilium CNI (`managed`: Azure CNI Powered by Cilium; `byo`/kind: OSS Cilium) | Microsoft-supported CNI by default; full Cilium as an opt-in (D-005, [ADR-0003](docs/adr/0003-cilium-ebpf-and-gateway-api.md)) | Managed Cilium allows only label-exclusion changes (F3) | Infrastructure services |
 | P1 A place to run | `CiliumNetworkPolicy` default-deny baseline (L3/L4) | The app's network boundary, provable for free on kind and managed AKS (D-021, D-027, D-029) | Managed-namespace network policy (F16) | Security services |
-| P1 A place to run | OpenTofu (`infra/`) | Open-source license; HCL stays Terraform-compatible (D-013) | Bicep / AVM | Infrastructure services |
+| P1 A place to run | Terraform (`infra/`) | The owner's choice for platform foundations; one pinned, checksum-locked CLI (D-088, [ADR-0009](docs/adr/0009-terraform-for-aks-foundations.md)) | Bicep / AVM | Infrastructure services |
 | P2 An identity | Entra Workload ID with one UAMI per app per env (`AppIdentity` XR) | No stored secret; per-app blast radius; provable allow/deny (D-022, [ADR-0008](docs/adr/0008-application-workload-identity.md)) | This *is* the AKS-native path; the platform adds per-app scoping and lifecycle | Identity and secret services |
 | P2 An identity | External Secrets Operator + Key Vault (`PushSecret` → `ExternalSecret`) | Brokers connection details across the cluster split (ADR-0002) | Workload identity directly, which is preferred wherever the dependency supports Entra auth (ADR-0008) | Identity and secret services |
 | P2 An identity | Reloader | Restarts the app when a brokered credential rotates (ADR-0002) | — | Identity and secret services |
@@ -76,7 +77,7 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 | 5 | Automation for delivering and verifying services | Partial: Argo CD, placement, Gitea and Chainsaw proven on kind (all suites); no automated progressive delivery (D-032) | Argo CD, Chainsaw |
 | 6 | Development environments | **Deferred** (D-033) | — |
 | 7 | Application observability | Partial: `idp-diagnose.sh` (J3) and the label taxonomy (J1, J4) proven on kind; metrics, Grafana and OpenCost in Phase 6; no aggregated logs or tracing (D-033) | Prometheus, Grafana, Hubble, OpenCost |
-| 8 | Infrastructure services | Partial: kind, tenancy, Cilium and the Gateway proven on kind (placement, O1, network contract); AKS and OpenTofu in Phase 4 | AKS, kind, Cilium, Gateway API, OpenTofu |
+| 8 | Infrastructure services | Partial: kind, tenancy, Cilium and the Gateway proven on kind (placement, O1, network contract); AKS and Terraform in Phase 4 | AKS, kind, Cilium, Gateway API, Terraform |
 | 9 | Data services | Partial (PostgreSQL only): proven on kind with CloudNativePG (J4); Azure Flexible Server in Phase 4 | PostgreSQL compositions |
 | 10 | Messaging and event services | **Deferred** (D-033) | — |
 | 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); Workload ID and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
@@ -200,8 +201,8 @@ make kind-down
 ### AKS: *Planned (Phase 4). These commands don't exist yet.*
 
 ```bash
-tofu -chdir=infra/envs/<env> init
-tofu -chdir=infra/envs/<env> plan   # cilium_mode = managed (default) | byo; enable_edge_waf = false (default)
+terraform -chdir=infra/envs/<env> init
+terraform -chdir=infra/envs/<env> plan   # cilium_mode = managed (default) | byo; enable_edge_waf = false (default)
 ```
 
 AKS support is declared only after the network contract suite passes on `managed` and `byo` (D-027) and the identity

@@ -12,3 +12,10 @@ platform/components/*/charts/
 
 # kind kubeconfig used by the Makefile
 .kube/
+
+# Terraform (D-083, D-088): provider caches, state and filled-in tfvars never enter Git; .terraform.lock.hcl does.
+infra/**/.terraform/
+infra/**/*.tfstate
+infra/**/*.tfstate.*
+infra/**/*.auto.tfvars
+infra/**/tfplan*

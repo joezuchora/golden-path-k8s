@@ -76,10 +76,20 @@ jobs:
         run: make e2e JOURNEY="$SUITE"
       - name: Diagnostics on failure
         if: failure()
+        # The Makefile's kind kubeconfig, not ~/.kube/config (which doesn't exist on the runner): without it every command
+        # below hits localhost:8080 and shows nothing.
         run: |
-          export PATH="$PWD/.bin:$PATH"
-          kubectl get applications -A || true
+          export PATH="$PWD/.bin:$PATH" KUBECONFIG="$PWD/.kube/golden-path.yaml"
+          kind export kubeconfig --name golden-path --kubeconfig "$KUBECONFIG" >/dev/null 2>&1 || { echo "no kind cluster"; exit 0; }
+          kubectl get applications -A -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,MESSAGE:.status.operationState.message' || true
+          # Why an Application isn't Healthy: its resources that aren't, with their messages.
+          kubectl get applications -A -o json | jq -r '.items[] | select(.status.health.status != "Healthy") | .metadata.name as $a
+            | (.status.resources // [])[] | select(.health.status != null and .health.status != "Healthy")
+            | "\($a): \(.kind)/\(.namespace // "-")/\(.name) \(.health.status) \(.health.message // "")"' || true
           kubectl get pods -A | grep -vE 'Running|Completed' || true
+          for p in $(kubectl get pods -A --no-headers 2>/dev/null | grep -vE 'Running|Completed' | awk '{print $1 "/" $2}' | head -5); do
+            echo "--- describe $p"; kubectl -n "${p%%/*}" describe pod "${p#*/}" | tail -25 || true
+          done
           kubectl get events -A --sort-by=.lastTimestamp | tail -50 || true
       - name: Reports
         if: always()

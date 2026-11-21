@@ -1,0 +1,13 @@
+# Set by components-control-plane (D-078): true only when the cluster hosts the control plane without workloads. On kind
+# (both capabilities) it is false and this release renders nothing: the workloads ESO install already runs the PushSecrets,
+# and two installs of the same CRDs and webhooks on one cluster would fight.
+global:
+  platform:
+    controlPlaneOnly: false
+# Same sizing as the workloads install. The controller runs with no Azure identity of its own: each tenant SecretStore names
+# its own federated service account (serviceAccountRef), so one team's store can't use another team's identity.
+external-secrets:
+  installCRDs: true
+  resources: {requests: {cpu: 20m, memory: 64Mi}, limits: {memory: 256Mi}}
+  webhook: {resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 128Mi}}}
+  certController: {resources: {requests: {cpu: 10m, memory: 64Mi}, limits: {memory: 256Mi}}}

@@ -175,7 +175,7 @@ Every escape hatch goes through Git, has an owner, and expires or is reviewed. N
 
 | Need | Escape hatch | Approval | Source |
 |---|---|---|---|
-| Isolation beyond a shared workload cluster | Your own workload cluster, registered with `hosts-workloads` | Platform team | ADR-0001 |
+| Isolation beyond a shared workload cluster | Your own workload cluster, registered with `hosts-workloads` in its own workload group, which your team file assigns your envs to (D-079) | Platform team | ADR-0001 |
 | A resource shape the XRD doesn't offer | Request a new composition variant | Platform team | ADR-0002 |
 | Adopt an existing cloud resource | Observe-only import (`managementPolicies`) | Platform team | ADR-0002 |
 | Service-to-service mTLS identity (mesh) | Open an ADR; not in v1 | Platform team | ADR-0003 |
@@ -246,7 +246,6 @@ Per-user Backstage isolation is promised on AKS only (D-025).
 | Dependencies other than PostgreSQL | ADR-0002 (catalog expansion) |
 | More than one database per app (`dependencies.postgres` takes one entry in v1) | D-071 |
 | Credentials isolated per app within a team and env on kind (the kind vault is shared by the team's apps in that env; per-app scoping is the AKS identity gate) | D-071, ADR-0008 |
-| More than one workload cluster per env for team apps (Application names have no cluster component) | D-072 (Phase 4) |
 | Workloads other than an HTTP service: slow-starting inference, queue-driven jobs, stateful brownfield services, serverless or microVM isolation | Supported baseline below |
 | Brownfield adoption (existing namespaces, existing cloud resources, durable data) | Supported baseline below |
 | Team deploy-repo PR checks (render the values, evaluate current policy before merge); on kind the journeys merge first and read the post-merge status | Phase 6 (with Renovate and `decision-log-check`) |

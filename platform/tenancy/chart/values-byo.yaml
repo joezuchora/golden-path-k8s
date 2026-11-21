@@ -1,0 +1,4 @@
+# AKS, cilium_mode=byo (D-005). Same secret backend as managed (D-078); the Cilium Gateway keeps the reserved ingress
+# identity (values.yaml default).
+secrets:
+  backend: keyvault

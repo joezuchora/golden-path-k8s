@@ -12,10 +12,15 @@ metadata:
     platform.example.org/env: dev
     platform.example.org/tenant-scope: control-plane
 ---
-# The platform's Azure settings (OpenTofu writes this in Phase 4). Test values only.
+# The platform's Azure settings, as infra/aks/aks.sh writes them from Terraform's outputs (D-081, D-082). Test values only.
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata: {name: azure-platform}
 data:
+  environmentId: test01
   location: westeurope
   tenantId: 00000000-0000-0000-0000-000000000000
+  postgresSubnetId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-gp-test01-platform/providers/Microsoft.Network/virtualNetworks/vnet-gp-test01/subnets/snet-postgres
+  postgresPrivateDnsZoneId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-gp-test01-platform/providers/Microsoft.Network/privateDnsZones/test01.private.postgres.database.azure.com
+  tenantResourceGroups:
+    tenant-team-a-dev: rg-gp-test01-team-a-dev
