@@ -8,7 +8,14 @@ if gitea GET "/repos/$REPO/contents/platform/tenancy/teams/team-c.yaml?ref=main"
   pr_merge "$REPO" "$n" >/dev/null
   echo "merged offboarding PR #$n"
 fi
-kubectl -n argocd delete applications -l platform.example.org/team=team-c --wait=true --timeout=180s
+if ! kubectl -n argocd delete applications -l platform.example.org/team=team-c --wait=true --timeout=270s; then
+  # Show what the finalizers are still waiting on, so a real hang is diagnosable from the CI log.
+  kubectl -n argocd get applications -l platform.example.org/team=team-c -o jsonpath='{range .items[*]}{.metadata.name}: {.status.operationState.phase} {.status.operationState.message}{"
+"}{end}' || true
+  kubectl get ns tenant-team-c-dev vault-team-c-dev team-c-dev -o jsonpath='{range .items[*]}{.metadata.name}: {.status.phase} {.status.conditions[*].message}{"
+"}{end}' 2>/dev/null || true
+  exit 1
+fi
 gitea DELETE /repos/team-c/deploy >/dev/null
 gitea DELETE /orgs/team-c >/dev/null
 echo "team-c removed"
