@@ -50,11 +50,18 @@ jobs:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
-  kind-e2e:
+  # One fresh kind platform per suite, in parallel (D-077): wall time is kind-up plus the longest suite, and each suite
+  # proves itself on a clean cluster.
+  e2e:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [placement, o1-onboard-team, j1-ship, j2-rejected-change, j3-unhealthy-rollout, j4-request-database, network-contract]
+    env: {SUITE: "${{ matrix.suite }}"}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {persist-credentials: false}
@@ -65,7 +72,8 @@ jobs:
           make doctor PROFILE=github
         env: {GH_TOKEN: "${{ github.token }}"}
       - run: make kind-up
-      - run: make e2e-all
+      - name: make e2e (one suite)
+        run: make e2e JOURNEY="$SUITE"
       - name: Diagnostics on failure
         if: failure()
         run: |
@@ -76,4 +84,16 @@ jobs:
       - name: Reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: {name: e2e-reports, path: .e2e-reports/, if-no-files-found: ignore}
+        with: {name: "e2e-reports-${{ matrix.suite }}", path: .e2e-reports/, if-no-files-found: ignore}
+
+  # The single required check: green when every suite passed, or when the matrix was skipped for a Markdown-only PR.
+  kind-e2e:
+    needs: [changes, e2e]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - env: {CODE: "${{ needs.changes.outputs.code }}", RESULT: "${{ needs.e2e.result }}"}
+        run: |
+          echo "changes=$CODE e2e=$RESULT"
+          if [ "$CODE" = false ] && [ "$RESULT" = skipped ]; then echo "Markdown-only PR: kind suites not needed"; exit 0; fi
+          [ "$RESULT" = success ] || { echo "::error::kind suites: $RESULT"; exit 1; }
