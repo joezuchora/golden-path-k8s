@@ -11,7 +11,7 @@ sha="$(ship team-a hello dev /tmp/j3.$$ j3-wrong-port)"; rm -f /tmp/j3.$$
 echo "merged team-a/deploy → $sha"
 wait_app team-a-hello-dev Synced Degraded 420 || fail=1
 cmd=""
-if d="$(wait_status team-a/deploy "$sha" failure 300)"; then
+if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev 300)"; then
   cmd="$(echo "$d" | grep -oE 'scripts/idp-diagnose\.sh [^ ]+ [^ ]+ --team [^ ."]+' | head -1 || true)"
   [ -n "$cmd" ] && echo "PASS commit status names the exact next command: $cmd" || { echo "FAIL status lacks a runnable diagnosis command: $d"; fail=1; }
 else fail=1; fi

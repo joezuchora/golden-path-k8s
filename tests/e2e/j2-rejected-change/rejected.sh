@@ -18,7 +18,7 @@ echo "== (a) unsigned image"
 printf 'app: hello\nenv: dev\nimage: %s\nreplicas: 1\n' "$HELLO_UNSIGNED" >/tmp/j2a.$$
 sha="$(ship team-a hello dev /tmp/j2a.$$ j2-unsigned)"; rm -f /tmp/j2a.$$
 echo "merged team-a/deploy → $sha"
-if d="$(wait_status team-a/deploy "$sha" failure 360)"; then actionable "$d" image-admission; else fail=1; fi
+if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev 360)"; then actionable "$d" image-admission; else fail=1; fi
 if kubectl -n team-a-dev get deploy hello >/dev/null 2>&1; then echo "FAIL the unsigned Deployment exists"; fail=1
 else echo "PASS nothing was admitted (no Deployment in team-a-dev)"; fi
 
@@ -41,7 +41,7 @@ n="$(pr_put_file team-a/deploy j2-sideload xrs/dev/sideloaded.yaml /tmp/j2b.$$ "
 sha="$(pr_merge team-a/deploy "$n")"; appset_refresh xrs-team-a
 kubectl -n argocd annotate application team-a-xrs-dev argocd.argoproj.io/refresh=normal --overwrite >/dev/null 2>&1 || true
 echo "merged team-a/deploy → $sha"
-if d="$(wait_status team-a/deploy "$sha" failure 360)"; then actionable "$d" tenant-namespace-xrs-only; else fail=1; fi
+if d="$(wait_status team-a/deploy "$sha" failure team-a-xrs-dev 360)"; then actionable "$d" tenant-namespace-xrs-only; else fail=1; fi
 if kubectl -n tenant-team-a-dev get deploy sideloaded >/dev/null 2>&1; then echo "FAIL the sideloaded Deployment exists"; fail=1
 else echo "PASS nothing was admitted (no Deployment in tenant-team-a-dev)"; fi
 exit $fail

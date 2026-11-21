@@ -27,5 +27,5 @@ hdr="$(in_curl hello-team-a-dev.apps.kind.test https / -D - -o /dev/null | grep 
 [ -n "$hdr" ] && echo "PASS response header modifier: $hdr" || { echo "FAIL x-journey response header missing"; fail=1; }
 redir="$(in_curl hello-team-a-dev.apps.kind.test http / | tail -1)"
 [ "$redir" = 301 ] && echo "PASS http → https redirect (301)" || { echo "FAIL http returned $redir"; fail=1; }
-desc="$(wait_status team-a/deploy "$sha" success 300)" && echo "PASS commit status success on $sha: $desc" || fail=1
+desc="$(wait_status team-a/deploy "$sha" success team-a-hello-dev 300)" && echo "PASS commit status success on $sha: $desc" || fail=1
 exit $fail

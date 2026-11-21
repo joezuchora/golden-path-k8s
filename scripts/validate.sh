@@ -27,7 +27,6 @@ render_all() { # name → rendered file, for every chart the platform ships, per
     for p in kind managed byo; do
       local vf=(-f "$c/values.yaml"); [ -f "$c/values.yaml" ] || vf=()
       [ -f "$c/values-$p.yaml" ] && vf+=(-f "$c/values-$p.yaml")
-      helm dependency build "$c" >/dev/null 2>&1 || true
       if ! helm template "$(basename "$c")" "$c" "${vf[@]}" >"$W/comp-$(basename "$c")-$p.yaml" 2>"$W/err"; then
         rm -f "$W/comp-$(basename "$c")-$p.yaml"
         if [ "$p" = kind ] || [ -f "$c/values-$p.yaml" ]; then fail "render $c ($p): $(head -3 "$W/err")"
@@ -49,6 +48,16 @@ render_all() { # name → rendered file, for every chart the platform ships, per
       -f charts/golden-service/ci/full-values.yaml >"$W/gs-$p.yaml" 2>"$W/err" || fail "render golden-service ($p): $(head -3 "$W/err")"
   done
 }
+
+hdr "chart dependencies"
+for c in platform/components/*/; do
+  c="${c%/}"; [ "$(yq '.dependencies // [] | length' "$c/Chart.yaml" 2>/dev/null)" = 0 ] && continue
+  [ -f "$c/Chart.yaml" ] || continue
+  if [ ! -d "$c/charts" ]; then
+    helm dependency update "$c" >"$W/dep" 2>&1 && pass "fetched $c dependencies (pinned in Chart.yaml)" || fail "helm dependency update $c: $(tail -2 "$W/dep")"
+  fi
+done
+git diff --quiet -- 'platform/components/*/Chart.lock' && pass "every Chart.lock unchanged by the fetch" || fail "a Chart.lock changed: $(git diff --stat -- 'platform/components/*/Chart.lock' | tail -1)"
 
 hdr "helm lint"
 for c in charts/golden-service platform/tenancy/chart platform/components/*/; do

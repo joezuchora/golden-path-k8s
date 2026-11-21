@@ -27,14 +27,16 @@ wait_app() {
   done
   echo "FAIL Argo CD $a: $got (want $want): $(kubectl -n argocd get application "$a" -o jsonpath='{.status.operationState.message}' 2>/dev/null | cut -c1-300)"; return 1
 }
-# wait_status <owner/repo> <sha> <state> [timeout s] → prints the matching status description
+# wait_status <owner/repo> <sha> <state> <application> [timeout s] → prints that application's status description.
+# One deploy-repo commit can get statuses from several applications (the team's apps and its XRs share the repo), so the
+# caller names the one it expects.
 wait_status() {
-  local repo=$1 sha=$2 want=$3 t=${4:-300} s
+  local repo=$1 sha=$2 want=$3 app=$4 t=${5:-300} s
   for _ in $(seq 1 $((t / 5))); do
-    s="$(commit_statuses "$repo" "$sha" | jq -r --arg w "$want" '[.[] | select(.context | startswith("platform/argocd/")) | select(.status == $w)][0].description // empty')"
+    s="$(commit_statuses "$repo" "$sha" | jq -r --arg w "$want" --arg c "platform/argocd/$app" '[.[] | select(.context == $c) | select(.status == $w)][0].description // empty')"
     [ -n "$s" ] && { echo "$s"; return 0; }
     sleep 5
   done
-  echo "FAIL: no '$want' commit status from Argo CD on $repo@$sha. Statuses: $(commit_statuses "$repo" "$sha" | jq -c '[.[] | {context, status, description}]' | cut -c1-500)" >&2
+  echo "FAIL: no '$want' commit status from platform/argocd/$app on $repo@$sha. Statuses: $(commit_statuses "$repo" "$sha" | jq -c '[.[] | {context, status, description}]' | cut -c1-500)" >&2
   return 1
 }
