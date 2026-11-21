@@ -144,6 +144,10 @@ fi
 # GitHub Actions: every `uses:` of a remote action is pinned to a commit SHA; cosign checksum matches the lock.
 bad="$(grep -hE '^\s*(- )?uses: ' .github/workflows/*.yaml | grep -vE 'uses: \./' | grep -vE '@[0-9a-f]{40}( |$)' || true)"
 [ -z "$bad" ] && pass "every GitHub Action is pinned by commit SHA" || fail "actions not pinned by SHA: $bad"
+# Workflows parse as YAML (GitHub rejects the whole file otherwise, and the checks below would silently see nothing).
+for f in .github/workflows/*.yaml; do
+  yq -e '.jobs' "$f" >/dev/null 2>"$W/err" && pass "$f parses" || fail "$f isn't valid YAML: $(head -1 "$W/err")"
+done
 # Workflows: no ${{ }} expression inside a run: script; values reach the shell through env: (D-069, GitHub script injection).
 inj="$(for f in .github/workflows/*.yaml; do yq -r '.jobs[].steps[]? | select(.run != null) | .run' "$f" | grep -n '\${{' | sed "s|^|$f: |"; done || true)"
 [ -z "$inj" ] && pass "no \${{ }} expressions inside workflow run: scripts (D-069)" || { fail "workflow scripts expand expressions directly (use env:):"; echo "$inj" | head -10 | sed 's/^/        /'; }

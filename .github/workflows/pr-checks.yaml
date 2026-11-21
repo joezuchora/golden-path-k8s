@@ -20,7 +20,7 @@ jobs:
       - name: make validate (every check must run; a SKIP fails, D-069)
         run: make validate
         env: {REQUIRE_ALL: "1"}
-      - name: make test-policies (online: registry + Rekor, F35)
+      - name: "make test-policies (online: registry + Rekor, F35)"
         run: make test-policies
       - name: verify-docs
         run: bash scripts/verify-docs.sh
@@ -34,7 +34,7 @@ jobs:
       - run: make doctor
       - name: The CI-built fixtures exist and pull anonymously (D-065, D-069)
         run: |
-          grep -q PENDING tests/e2e/lib/images.env && { echo "::error::tests/e2e/lib/images.env has no CI-built digests"; exit 1; } || true
+          if grep -q PENDING tests/e2e/lib/images.env; then echo "::error::tests/e2e/lib/images.env has no CI-built digests"; exit 1; fi
           make doctor PROFILE=github
         env: {GH_TOKEN: "${{ github.token }}"}
       - run: make kind-up
