@@ -18,7 +18,7 @@ on:
       context: {description: Build context (directory with the Dockerfile), type: string, required: true}
       image-name: {description: "Image name under ghcr.io/<owner>/<repo>/ (e.g. hello)", type: string, required: true}
     outputs:
-      image: {description: The pushed image, by digest, value: "${{ jobs.build.outputs.image }}"}
+      image: {description: "The pushed image, by digest", value: "${{ jobs.build.outputs.image }}"}
 
 permissions: {}
 
