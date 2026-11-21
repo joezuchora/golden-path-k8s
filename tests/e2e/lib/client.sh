@@ -23,12 +23,15 @@ spec:
 EOF
   kubectl -n "$CLIENT_NS" wait --for=condition=Ready pod/client --timeout=120s >/dev/null
 }
+# client_exec <cmd…>: run a command in the client pod with its arguments passed through unchanged (MSYS_NO_PATHCONV: on
+# Git Bash, a pod-side path such as /ca/ca.crt would otherwise be rewritten to a Windows path before kubectl sees it).
+client_exec() { MSYS_NO_PATHCONV=1 kubectl -n "$CLIENT_NS" exec client -- "$@"; }
 gateway_ip() { kubectl -n platform-gateway get gateway platform -o jsonpath='{.status.addresses[0].value}'; }
 # in_curl <host> <scheme> <path> [curl args…] → prints "<http code> <body>"
 in_curl() {
   local host=$1 scheme=$2 path=$3; shift 3
   local port=443; [ "$scheme" = http ] && port=80
-  kubectl -n "$CLIENT_NS" exec client -- curl -s -m 10 --cacert /ca/ca.crt --resolve "$host:$port:$(gateway_ip)" \
+  client_exec curl -s -m 10 --cacert /ca/ca.crt --resolve "$host:$port:$(gateway_ip)" \
     -w '\n%{http_code}' "$@" "$scheme://$host$path"
 }
 # wait_http <host> <path> <code> [timeout s] → waits until HTTPS returns <code>

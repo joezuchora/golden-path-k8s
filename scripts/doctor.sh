@@ -13,7 +13,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="$ROOT/.bin:$PATH"
-MIN_MEM_GIB="${MIN_MEM_GIB:-10}"
+MIN_MEM_GIB="${MIN_MEM_GIB:-8}"   # measured peak 5.97 GiB for the whole Phase 3 run, plus headroom (F49)
 fails=0; warns=0
 pass() { printf 'PASS  %s\n' "$*"; }
 fail() { printf 'FAIL  %s\n' "$*"; fails=$((fails+1)); }

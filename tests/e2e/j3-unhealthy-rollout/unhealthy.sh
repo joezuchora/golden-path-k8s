@@ -12,7 +12,7 @@ echo "merged team-a/deploy → $sha"
 wait_app team-a-hello-dev Synced Degraded 420 || fail=1
 cmd=""
 if d="$(wait_status team-a/deploy "$sha" failure 300)"; then
-  cmd="$(echo "$d" | grep -oE 'scripts/idp-diagnose\.sh [^ ]+ [^ ]+ --team [^ ."]+' | head -1)"
+  cmd="$(echo "$d" | grep -oE 'scripts/idp-diagnose\.sh [^ ]+ [^ ]+ --team [^ ."]+' | head -1 || true)"
   [ -n "$cmd" ] && echo "PASS commit status names the exact next command: $cmd" || { echo "FAIL status lacks a runnable diagnosis command: $d"; fail=1; }
 else fail=1; fi
 [ "$cmd" = "scripts/idp-diagnose.sh hello dev --team team-a" ] || { echo "FAIL published command is '$cmd'"; fail=1; }
@@ -21,7 +21,7 @@ export ARGOCD_TOKEN; ARGOCD_TOKEN="$(argo_team_token team-a)"; export ARGOCD_URL
 # Run exactly the published command, as the developer.
 out="$(cd ../../.. && bash $cmd --as dev-a || true)"
 echo "$out" | sed 's/^/    /'
-for want in "FAILED STEP: Rollout" "NEXT ACTION: Revert the PR, or fix and re-merge" "Readiness probe failed"; do
+for want in "FAILED STEP: Rollout" "NEXT ACTION: Revert the PR, or fix and re-merge" "probe failed: Get" "connection refused"; do
   case "$out" in *"$want"*) echo "PASS diagnosis shows '$want'";; *) echo "FAIL diagnosis lacks '$want'"; fail=1;; esac
 done
 case "$out" in *Forbidden*|*forbidden*) echo "FAIL the diagnosis hit a forbidden read"; fail=1;; esac

@@ -15,7 +15,7 @@ done <"$ROOT/tools/versions.env"
 
 CLUSTER=golden-path
 CTX="kind-$CLUSTER"
-MIN_MEM_GIB="${MIN_MEM_GIB:-10}"
+MIN_MEM_GIB="${MIN_MEM_GIB:-8}"   # measured peak 5.97 GiB (F49)
 k() { kubectl --context "$CTX" "$@"; }
 step() { printf '\n==> %s\n' "$*"; }
 
@@ -98,7 +98,7 @@ gitops() {
 case "${1:-up}" in
   preflight) preflight ;;
   up) preflight; cluster; gateway_api; cilium; gitea; argocd; seed_git; gitops; step "kind-up done (Argo CD now reconciles the platform from Gitea)"; k get nodes -o wide ;;
-  sync-git) seed_git ;;   # push the current working tree to Gitea again (after a local change)
+  sync-git) argocd; seed_git ;;   # after a local change: re-apply Argo CD's bootstrap-owned values, push the tracked tree to Gitea
   down) kind delete cluster --name "$CLUSTER" ;;
   *) echo "usage: $0 up|down|preflight|sync-git"; exit 2 ;;
 esac

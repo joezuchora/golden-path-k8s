@@ -5,9 +5,9 @@ step here and the doctor disagree, the doctor is right, and this page has a bug.
 
 | You want to | Profile | Status |
 |---|---|---|
-| Run the platform and the journeys on your laptop (kind) | `make doctor` (`local`) | Phase 3, in progress |
+| Run the platform and the journeys on your laptop (kind) | `make doctor` (`local`) | Available (Phase 3) |
 | Run the docs gate (`scripts/verify-docs.sh`) | `make doctor PROFILE=docs` | Available |
-| Run the signed-image journeys (J1 allow path) against GHCR | `make doctor PROFILE=github` | Phase 3, M7 |
+| Run the signed-image journeys (J1 allow path) against GHCR | `make doctor PROFILE=github` | Available (Phase 3) |
 | Run on AKS (`managed` or `byo`) | `make doctor PROFILE=cloud` | **Phase 4: not available yet** |
 
 ## 1. Local (kind)
@@ -28,7 +28,7 @@ and the doctor checks exactly what Cilium needs: cgroup v2 and an engine kernel 
 | Requirement | Why | Checked by |
 |---|---|---|
 | A container engine running **Linux containers** (Docker Desktop or Docker Engine) | kind runs each node as a container; "`kind` for Windows requires Linux containers" (F37) | `doctor`: engine reachable, Linux containers |
-| **Memory available to the engine ≥ 10 GiB** (see [Memory](#memory)) | The full kind platform. The threshold is provisional until the whole Phase 3 stack is measured (M10) | `doctor`: engine memory |
+| **Memory available to the engine ≥ 8 GiB** (see [Memory](#memory)) | The full kind platform: the whole Phase 3 run (every suite) peaked at 5.97 GiB across the three nodes (F49); 8 GiB leaves headroom for the engine itself | `doctor`: engine memory |
 | **cgroup v2** and an engine kernel **≥ 5.14** | Cilium's socket-LB on kind (F30) | `doctor` |
 | **bash ≥ 4.0** | The scripts. macOS ships bash 3.2, so put a current bash first on `PATH` | `doctor` |
 | **GNU make ≥ 4.0** | The Makefile uses `.SHELLFLAGS`. macOS ships an older make | `doctor` |
@@ -47,7 +47,7 @@ You don't need global installs, and you don't need admin rights for them.
 | Docker Desktop on macOS (and Linux, Windows Hyper-V) | Settings → Resources → Advanced → Memory limit | 50% of host memory (F38) |
 | Docker Engine on Linux | The host's memory | — |
 
-So a 16 GB laptop gets about 8 GB by default, which is below the threshold. Raise the limit or use a larger host.
+So a 16 GB laptop gets about 8 GB by default: just enough. If the doctor reports less than 8 GiB, raise the limit or use a larger host.
 
 ### Linux only: inotify limits
 

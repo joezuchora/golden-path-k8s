@@ -52,7 +52,7 @@ GET_ERR=""
 get() {
   local __v=$1; shift
   local out
-  if out="$(k "$@" -o json 2>&1)"; then printf -v "$__v" '%s' "$out"; return 0; fi
+  if out="$(k get "$@" -o json 2>&1)"; then printf -v "$__v" '%s' "$out"; return 0; fi
   GET_ERR="$(echo "$out" | head -1 | cut -c1-200)"
   case "$out" in *NotFound*|*"not found"*) return 1 ;; *) return 2 ;; esac
 }

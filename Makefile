@@ -30,13 +30,13 @@ doctor: ## Check prerequisites: make doctor [PROFILE=local|docs|github|cloud|all
 tools: ## Install pinned, checksum-verified CLIs into ./.bin
 	bash tools/install.sh
 
-preflight: ## Check Docker, memory (>=10 GiB) and cgroup v2 before kind-up
+preflight: ## Check Docker, memory (>=8 GiB) and cgroup v2 before kind-up
 	bash infra/kind/bootstrap.sh preflight
 
 kind-up: tools ## Create the kind platform (preflight → cluster → Cilium → GitOps)
 	bash infra/kind/bootstrap.sh up
 
-kind-sync: ## Push the working tree to the in-cluster Gitea (Argo CD then reconciles it)
+kind-sync: ## Re-apply Argo CD's values and push the tracked working tree to the in-cluster Gitea
 	$(KUBECONFIG_REFRESH)
 	bash infra/kind/bootstrap.sh sync-git
 

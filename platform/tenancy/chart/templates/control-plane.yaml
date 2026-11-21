@@ -162,7 +162,9 @@ spec:
         server: '{{ "{{" }} .server {{ "}}" }}'
         namespace: 'tenant-{{ .Values.team }}-{{ "{{" }} .env {{ "}}" }}'
       syncPolicy:
-        automated: {prune: true, selfHeal: true}
+        # allowEmpty: deleting a team's last XR empties the application, and automated sync won't prune to zero
+        # resources without it (F47), so the XR, and the database behind it, would never be deleted.
+        automated: {prune: true, selfHeal: true, allowEmpty: true}
         retry:
           limit: 2
           backoff: {duration: 5s, factor: 2, maxDuration: 30s}

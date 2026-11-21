@@ -1,0 +1,16 @@
+# Pods as a ReplicaSet creates them in team-a-dev. The images are the CI-built fixtures in tests/e2e/lib/images.env.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: signed
+  namespace: team-a-dev
+  ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: hello-1, uid: 00000000-0000-0000-0000-000000000001, controller: true}]
+spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:8aa17f849f231180008208608fecd7ca6dca46c76eafdb9aaf33febfdcacdd42"}]}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unsigned
+  namespace: team-a-dev
+  ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: hello-2, uid: 00000000-0000-0000-0000-000000000002, controller: true}]
+spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello-unsigned@sha256:e3e1d6165b54646f57df02c7671d504c99ae06a30f511d34e2679cc5da606978"}]}

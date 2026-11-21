@@ -37,12 +37,12 @@ check "cross-tenant: team-b's secret reader can't read team-a's vault" "[ \"\$(k
 check "developers can't read the vault or the delivered secret" "[ \"\$(kubectl auth can-i get secrets -n $V --as dev-a --as-group team-a)\" = no ] && [ \"\$(kubectl auth can-i get secrets -n $A --as dev-a --as-group team-a)\" = no ]"
 
 echo "== 4. rotate the credential; the app restarts and reconnects"
-before="$(kubectl -n $A get deploy hello -o jsonpath='{.spec.template.metadata.annotations}')"
+before="$(kubectl -n $A get deploy hello -o jsonpath='{.metadata.generation}')"   # Reloader changes the pod template's env, so the generation moves
 oldpods="$(podset)"
 newpw="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
 kubectl -n $T patch secret orders-db-app --type merge -p "{\"stringData\":{\"password\":\"$newpw\"}}" >/dev/null
 waitfor "the rotated password reached the app namespace" 180 "[ \"\$(kubectl -n $A get secret hello-orders-db-db -o jsonpath='{.data.password}' | base64 -d)\" = '$newpw' ]"
-waitfor "Reloader restarted the Deployment" 180 "[ \"\$(kubectl -n $A get deploy hello -o jsonpath='{.spec.template.metadata.annotations}')\" != '$before' ]"
+waitfor "Reloader restarted the Deployment (generation moved past $before)" 180 "[ \"\$(kubectl -n $A get deploy hello -o jsonpath='{.metadata.generation}')\" -gt $before ]"
 # The rollout is complete only when the controller has seen the new spec and the only pods left are new ones.
 rollout_done() { # new spec observed, 1 updated/ready/total replica, and none of the pods from before the rotation left
   local g o u r t p

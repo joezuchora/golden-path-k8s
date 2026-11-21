@@ -8,3 +8,4 @@ userinfo: userinfo.yaml
 results:
   - {policy: require-controller, resources: [owned], kind: Pod, result: pass}
   - {policy: require-controller, resources: [bare], kind: Pod, result: fail}
+  - {policy: require-controller, resources: [hello], kind: Deployment, result: skip}

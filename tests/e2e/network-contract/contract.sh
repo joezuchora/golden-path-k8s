@@ -75,7 +75,7 @@ r="$(probe 'http?url=http://other.team-b-dev.svc.cluster.local/')"
 dropped "$r" && ok "L3/L4 default deny: web → other (no allow) dropped: ${r:0:80}" || bad "web → other wasn't dropped: $r"
 r="$(probe 'http?url=https://github.com/')"
 dropped "$r" && ok "default-deny egress: web → internet dropped: ${r:0:80}" || bad "web → internet wasn't dropped: $r"
-set +e; kubectl -n "$CLIENT_NS" exec client -- curl -s -m 5 -o /dev/null http://api.team-b-dev.svc.cluster.local/v1; rc=$?; set -e
+set +e; client_exec curl -s -m 5 -o /dev/null http://api.team-b-dev.svc.cluster.local/v1; rc=$?; set -e
 [ "$rc" = 28 ] && ok "ingress only from the gateway: a pod outside it times out on api directly (curl exit 28), while the gateway path answers"   || bad "direct ingress to api: curl exit $rc (want 28, a timeout)"
 
 echo "== controller versions (D-039: installed patches)"

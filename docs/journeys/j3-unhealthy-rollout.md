@@ -21,7 +21,8 @@ its probes check 8080. The image is valid and admitted; the rollout never become
    $ scripts/idp-diagnose.sh hello dev --team team-a
    STEP         STATUS  CURRENT STATE
    Sync         OK      Argo CD team-a-hello-dev: Succeeded
-   Rollout      FAIL    0/1 ready; pods: NotReady; …; events: Unhealthy: Readiness probe failed: … connection refused
+   Rollout      FAIL    updated 1/1, available 0/1, ready 0/1, total 1; pods: NotReady; ProgressDeadlineExceeded: …;
+                        events: Unhealthy: Liveness probe failed: Get "http://…:8080/healthz": … connection refused
    Route        OK      https://hello-team-a-dev.apps.kind.test accepted by the platform gateway
 
    FAILED STEP: Rollout (FAIL)

@@ -228,3 +228,19 @@ fix, and none were dismissed:
 - **kind targeting and the toolchain (D-068).** The suites can no longer reach another cluster; the Gateway pool comes from
   the real kind subnet; a cached CLI is bound to its lock entry and digest; the upgrade procedure keeps overrides in
   effect and locks all five platforms.
+
+## 2026-11-21: First full journey runs (D-073, D-074)
+
+The first run of every suite against a CI-signed image failed in five places, and each was a design or test gap rather
+than flakiness. `require-controller` denied Deployments, because Kyverno autogenerates pod policies onto controllers by
+default and a pod template has no owner; its tests used only Pods, so they couldn't see it. Deleting a team's last XR
+never pruned it, because Argo CD's automated sync won't empty an application without `allowEmpty` (F47). Argo CD's own
+values are bootstrap-owned, so a changed notification template never reached the cluster through Gitea. Git Bash rewrote
+a pod-side path before `kubectl exec` passed it on. And J4 looked for a restart in the wrong field, since Reloader
+changes the pod template's environment, not its annotations. All five were fixed at the cause, and `make e2e-all` then
+passed all seven suites in one run. Its measured memory peak (5.97 GiB, F49) replaced the provisional 10 GiB requirement
+with 8 GiB (D-074).
+
+The run also settled two questions: the keyless-signed image passed the real admission policy in CI (the cosign format
+concern in F41), and the new GHCR packages could be pulled anonymously without a settings change (F48), though the
+doctor keeps checking that outcome.

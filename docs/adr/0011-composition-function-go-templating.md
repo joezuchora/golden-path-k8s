@@ -1,6 +1,6 @@
 # ADR-0011: Composition function: function-go-templating
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-21: every fitness check passed; render golden files and schema validation in `make validate`, derived tags live in J4)
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run
 - **CNCF capability domain(s):** APIs for automatically provisioning capabilities; Data services

@@ -75,6 +75,10 @@ metadata:
 spec:
   failurePolicy: Fail
   validationActions: [Deny]
+  # Pods only: Kyverno autogenerates pod policies onto controllers by default, and a pod template has no owner (D-063).
+  autogen:
+    podControllers:
+      controllers: []
   matchConstraints:
     {{- include "kp.apps" . }}
     resourceRules:
