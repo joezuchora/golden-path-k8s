@@ -8,7 +8,8 @@ weighed against.
 
 > **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
 > (`make e2e-all`); AKS is Phase 4.** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
-> [design evolution](docs/design-evolution.md).
+> [design evolution](docs/design-evolution.md). What comes next: [roadmap](ROADMAP.md); gotchas already solved:
+> [known issues](docs/known-issues.md).
 
 The 4 promises come from the AKS blog (F2, F16). **Cilium, Chainguard and Cosign are this repo's extensions; the blog
 doesn't mention them (F1, D-015).**

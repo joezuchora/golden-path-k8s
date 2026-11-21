@@ -1,4 +1,4 @@
-# Every PR (D-047): static checks, policy tests and the kind journeys. Public-repo runners have 4 CPU / 16 GB (F28).
+# Every PR (D-047): static checks, policy tests and the docs gate; the kind journeys unless the PR changes only Markdown (D-076). Public-repo runners have 4 CPU / 16 GB (F28).
 name: pr-checks
 on:
   pull_request: {}
@@ -11,6 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A PR that changes only Markdown skips the kind journeys (about 30 minutes): docs can't change what the platform does.
+  # The static job, including the docs gate's accuracy checks (citations, links, repo references), runs on every PR.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false, fetch-depth: 0}
+      - id: diff
+        env: {BASE_REF: "${{ github.base_ref }}"}
+        run: |
+          if [ -z "$BASE_REF" ]; then echo "code=true" >>"$GITHUB_OUTPUT"; echo "not a pull request: run everything"; exit 0; fi
+          changed="$(git diff --name-only "origin/$BASE_REF...HEAD")"
+          echo "$changed"
+          if [ -n "$changed" ] && ! echo "$changed" | grep -qvE '\.md$'; then
+            echo "code=false" >>"$GITHUB_OUTPUT"; echo "Markdown only: kind e2e skipped"
+          else
+            echo "code=true" >>"$GITHUB_OUTPUT"
+          fi
+
   static:
     runs-on: ubuntu-24.04
     steps:
@@ -30,6 +51,8 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
   kind-e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
