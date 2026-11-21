@@ -37,11 +37,17 @@ pr_delete_file() {
   gitea POST "/repos/$repo/pulls" "$(jq -n --arg h "$br" --arg t "$title" '{head:$h, base:"main", title:$t}')" | sed '$d' | jq -r .number
 }
 
-# pr_merge <owner/repo> <number> → prints the merge commit SHA
+# pr_merge <owner/repo> <number> → prints the merge commit SHA. Gitea checks a new PR's mergeability asynchronously and
+# refuses a merge (HTTP 405) until that check finishes, so a PR opened right after another one on the same repo can be
+# refused for a few seconds. Retry for up to a minute, then fail with Gitea's own answer.
 pr_merge() {
-  gitea POST "/repos/$1/pulls/$2/merge" '{"Do":"merge","delete_branch_after_merge":true}' | tail -1 | grep -qE '^20[0-9]$' \
-    || { echo "FAIL: merge $1#$2" >&2; return 1; }
-  gitea GET "/repos/$1/pulls/$2" | sed '$d' | jq -r .merge_commit_sha
+  local out code
+  for _ in $(seq 1 12); do
+    out="$(gitea POST "/repos/$1/pulls/$2/merge" '{"Do":"merge","delete_branch_after_merge":true}')"; code="$(echo "$out" | tail -1)"
+    case "$code" in 20?) gitea GET "/repos/$1/pulls/$2" | sed '$d' | jq -r .merge_commit_sha; return 0 ;; esac
+    sleep 5
+  done
+  echo "FAIL: merge $1#$2 → HTTP $code: $(echo "$out" | sed '$d' | head -c 300)" >&2; return 1
 }
 
 # commit_statuses <owner/repo> <sha> → JSON array of the commit's statuses, newest first
