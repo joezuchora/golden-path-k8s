@@ -24,6 +24,10 @@ jobs:
         run: make test-policies
       - name: verify-docs
         run: bash scripts/verify-docs.sh
+        env:
+          # Use the runner's AppArmor-profiled Chrome so the sandbox stays enabled.
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+          PUPPETEER_SKIP_DOWNLOAD: "true"
 
   kind-e2e:
     runs-on: ubuntu-24.04
