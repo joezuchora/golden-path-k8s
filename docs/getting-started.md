@@ -9,7 +9,7 @@ step here and the doctor disagree, the doctor is right, and this page has a bug.
 | Run the platform and the journeys on your laptop (kind) | `make doctor` (`local`) | Available (Phase 3) |
 | Run the docs gate (`scripts/verify-docs.sh`) | `make doctor PROFILE=docs` | Available |
 | Run the signed-image journeys (J1 allow path) against GHCR | `make doctor PROFILE=github` | Available (Phase 3) |
-| Run on AKS (`managed`; `byo` later) | `make doctor PROFILE=cloud` | **Phase 4 in progress:** preflight and OpenTofu ready; no live run yet |
+| Run on AKS (`managed`; `byo` later) | `make doctor PROFILE=cloud` | **Phase 4 in progress:** preflight and Terraform ready; no live run yet |
 
 ## 1. Local (kind)
 
@@ -36,7 +36,7 @@ and the doctor checks exactly what Cilium needs: cgroup v2 and an engine kernel 
 | git, curl, tar, unzip, awk, sed, grep, find, sort, mktemp, and `sha256sum` or `shasum` | `tools/install.sh` and the bootstrap | `doctor` |
 | Outbound HTTPS to the registries, chart repos, CLI downloads and Sigstore listed by the doctor | Images, charts and signature verification. `make test-policies` is **online**: image policies verify real signatures through Rekor (F35) | `doctor`: network endpoints |
 
-Everything else (kind, kubectl, helm, kyverno, chainsaw, crossplane, tofu, tflint, kubeconform, cosign, jq, yq, cilium,
+Everything else (kind, kubectl, helm, kyverno, chainsaw, crossplane, terraform, tflint, kubeconform, cosign, jq, yq, cilium,
 argocd) is installed by `make tools` into `./.bin` at the pinned versions, with checksums verified ([toolchain](toolchain.md)).
 You don't need global installs, and you don't need admin rights for them.
 
@@ -146,9 +146,9 @@ tamper-resistant public log" (F39). Check with `make doctor PROFILE=github`.
 
 | Requirement | Source in this repo |
 |---|---|
-| An identity with Owner, or Contributor plus User Access Administrator (or Role Based Access Control Administrator), on the subscription: OpenTofu creates role assignments for the platform identities | D-083, D-084 |
+| An identity with Owner, or Contributor plus User Access Administrator (or Role Based Access Control Administrator), on the subscription: Terraform creates role assignments for the platform identities | D-083, D-084 |
 | AKS Standard for the control and workload clusters (`cilium_mode = byo` needs "Bring your own CNI", listed only for Standard) | ADR-0001, F23 |
-| OpenTofu, kubelogin and the other CLIs at the pinned versions (installed by `make tools`) | D-013, D-084, [Version pins](adr/README.md#version-pins) |
+| Terraform, kubelogin and the other CLIs at the pinned versions (installed by `make tools`) | D-088, D-084, [Version pins](adr/README.md#version-pins) |
 | Your egress IP in `api_server_authorized_ip_ranges`: the API servers aren't open to the internet | D-083 |
 | Optional, with its own cost: ACNS for the L7/FQDN profile on `managed` (`enable_acns`); Azure Front Door Premium for the edge WAF (`enable_edge_waf`, refused until its module exists) | D-021, D-007 |
 

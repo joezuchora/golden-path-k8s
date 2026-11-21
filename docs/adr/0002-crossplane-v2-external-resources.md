@@ -43,7 +43,7 @@ Crossplane v2:
 - Lifecycle: readiness via auto-ready conditions; drift is corrected continuously; `managementPolicies` is the
   documented escape hatch for observe-only; deletion uses `deletionPolicy: Delete`, Crossplane `Usage` for
   ordering, and the per-tenant resource group as the blast-radius boundary.
-- **On AKS (D-082):** the tenant resource group is created per team and env by OpenTofu, and compositions place
+- **On AKS (D-082):** the tenant resource group is created per team and env by Terraform (D-088), and compositions place
   resources in it (Crossplane's identity is Contributor there only). The azure PostgreSQL server is VNet-integrated, and
   its connection details travel as one JSON key under the XR's name.
 - **Namespaced managed resources only (D-024).** A namespaced XR "can only compose resources in the same namespace",

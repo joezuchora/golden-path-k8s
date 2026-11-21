@@ -262,3 +262,13 @@ absence of a documented whole-Secret PushSecret for Key Vault, were checked agai
 
 Nothing in this slice has run on Azure. The tracker in the Decision Log keeps local evidence and live evidence apart, and
 `infra/aks/aks.sh` refuses to apply until the subscription is confirmed (D-083 to D-087).
+
+## 2026-11-21: Terraform for AKS foundations (D-013 → D-088)
+
+D-013 chose OpenTofu for its license and kept the HCL Terraform-compatible. The owner selected HashiCorp Terraform for the
+reference implementation. A first draft of that decision, made in a separate session, was never merged and reused D-073,
+a number `main` had already taken, so slice 1 was built on OpenTofu and the conflict surfaced in review. Because the HCL
+had stayed compatible, switching the engine before merge changed only the toolchain pin, the provider lock (now from
+registry.terraform.io), the scripts that call the CLI, and the records ([ADR-0009](adr/0009-terraform-for-aks-foundations.md)).
+The license is stated, not assumed: Terraform 1.6.0 and later are under the Business Source License (F58).
+

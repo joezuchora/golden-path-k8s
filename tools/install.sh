@@ -111,9 +111,10 @@ install_one() {
     # The bundle, not the bare binary: on Linux and Windows the bare binary's published .sha256 doesn't match it (F34).
     crossplane) v=$CROSSPLANE_CLI_VERSION; asset="crossplane-cli.tar.gz"
       url="https://cli.crossplane.io/stable/$v/bundle/${OS}_${ARCH}/$asset"; sumurl="$url.sha256"; member="crossplane$EXE" ;;
-    tofu) v=$TOFU_VERSION; asset="tofu_${v#v}_${OS}_${ARCH}.zip"
-      url="https://github.com/opentofu/opentofu/releases/download/$v/$asset"
-      sumurl="https://github.com/opentofu/opentofu/releases/download/$v/tofu_${v#v}_SHA256SUMS"; member="tofu$EXE" ;;
+    # Infrastructure engine for infra/ (D-088, ADR-0009). HashiCorp publishes one SHA256SUMS per release.
+    terraform) v=$TERRAFORM_VERSION; asset="terraform_${v#v}_${OS}_${ARCH}.zip"
+      url="https://releases.hashicorp.com/terraform/${v#v}/$asset"
+      sumurl="https://releases.hashicorp.com/terraform/${v#v}/terraform_${v#v}_SHA256SUMS"; member="terraform$EXE" ;;
     tflint) v=$TFLINT_VERSION; asset="tflint_${OS}_${ARCH}.zip"
       url="https://github.com/terraform-linters/tflint/releases/download/$v/$asset"
       sumurl="https://github.com/terraform-linters/tflint/releases/download/$v/checksums.txt"; member="tflint$EXE" ;;
@@ -176,5 +177,5 @@ install_one() {
 }
 
 TOOLS=("$@")
-[ ${#TOOLS[@]} -gt 0 ] || TOOLS=(kind kubectl helm kyverno chainsaw crossplane tofu tflint kubeconform cosign jq yq cilium argocd kubelogin)
+[ ${#TOOLS[@]} -gt 0 ] || TOOLS=(kind kubectl helm kyverno chainsaw crossplane terraform tflint kubeconform cosign jq yq cilium argocd kubelogin)
 for t in "${TOOLS[@]}"; do member=""; install_one "$t"; done

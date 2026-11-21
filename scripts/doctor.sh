@@ -153,7 +153,8 @@ check_cloud() {
   # Cloud preflight (D-084): everything an AKS run needs, checked read-only before anything billable exists. It reads the
   # environment's tfvars (infra/envs/$GP_ENV/$GP_ENV.auto.tfvars) and asks Azure only read questions.
   hdr "Azure / AKS (Phase 4, D-084)"
-  jq() { command jq "$@" | tr -d ''; }   # the Windows jq build ends lines with CRLF
+  jq() { command jq "$@" | tr -d '
+'; }   # the Windows jq build ends lines with CRLF
   local envname="${GP_ENV:-sandbox}" envdir="$ROOT/infra/envs/${GP_ENV:-sandbox}"
   local tfvars="$envdir/${GP_ENV:-sandbox}.auto.tfvars"
   az_() { az "$@" --only-show-errors 2>/dev/null | tr -d '\r'; }
@@ -165,7 +166,7 @@ check_cloud() {
     local azv; azv="$(az version --query '"azure-cli"' -o tsv 2>/dev/null | tr -d '\r')"
     version_ge "${azv:-0}" 2.60.0 && pass "az CLI $azv" || fail "az CLI ${azv:-unknown}; need >= 2.60 (https://learn.microsoft.com/cli/azure/install-azure-cli)"
   else fail "az CLI not found (https://learn.microsoft.com/cli/azure/install-azure-cli)"; return; fi
-  local t; for t in tofu kubelogin kubectl helm; do has "$t" && pass "$t (./.bin)" || fail "$t missing; run make tools"; done
+  local t; for t in terraform kubelogin kubectl helm; do has "$t" && pass "$t (./.bin)" || fail "$t missing; run make tools"; done
 
   # --- The environment's inputs
   [ -f "$tfvars" ] || { fail "$tfvars not found: copy $envdir/$envname.tfvars.example and fill it in (confirm every value with the environment owner)"; return; }
@@ -192,7 +193,7 @@ check_cloud() {
 
   # --- Network endpoints the run needs
   local u code
-  for u in https://management.azure.com https://login.microsoftonline.com https://registry.opentofu.org https://api.github.com \
+  for u in https://management.azure.com https://login.microsoftonline.com https://registry.terraform.io https://releases.hashicorp.com https://api.github.com \
            https://mcr.microsoft.com/v2/ https://packages.aks.azure.com; do
     if code="$(curl -s -o /dev/null -m 15 -w '%{http_code}' "$u")" && [ "$code" != 000 ]; then pass "$u ($code)"
     else fail "$u unreachable (DNS, proxy or firewall?)"; fi
@@ -216,7 +217,7 @@ check_cloud() {
       *,Owner,*) pass "Owner on the subscription (creates resources and role assignments)" ;;
       *,Contributor,*)
         case ",$roles" in *",User Access Administrator,"*|*",Role Based Access Control Administrator,"*) pass "Contributor + role-assignment rights on the subscription" ;;
-          *) fail "Contributor without User Access Administrator or Role Based Access Control Administrator: OpenTofu creates role assignments (identities, AKS RBAC)" ;; esac ;;
+          *) fail "Contributor without User Access Administrator or Role Based Access Control Administrator: Terraform creates role assignments (identities, AKS RBAC)" ;; esac ;;
       *) fail "need Owner, or Contributor + User Access Administrator, on /subscriptions/$sub (have: ${roles:-none})" ;;
     esac
   else warn "couldn't resolve your object ID (Graph access?); permissions not checked"; fi
@@ -268,11 +269,11 @@ check_cloud() {
       || warn "$left resource(s) already tagged environment-id=$id: an earlier run wasn't torn down, or the id is in use (bash infra/aks/aks.sh verify-teardown)"
   fi
 
-  # --- The OpenTofu root parses with these inputs (no backend, no Azure calls)
-  if tofu -chdir="$envdir" init -backend=false -input=false -lockfile=readonly >/tmp/doctor-tofu.$$ 2>&1 \
-     && tofu -chdir="$envdir" validate -no-color >>/tmp/doctor-tofu.$$ 2>&1; then pass "tofu init + validate $envdir"
-  else fail "tofu validate $envdir:"; tail -5 /tmp/doctor-tofu.$$ | sed 's/^/        /'; fi
-  rm -f /tmp/doctor-tofu.$$
+  # --- The Terraform root parses with these inputs (no backend, no Azure calls)
+  if terraform -chdir="$envdir" init -backend=false -input=false -lockfile=readonly >/tmp/doctor-tf.$$ 2>&1 \
+     && terraform -chdir="$envdir" validate -no-color >>/tmp/doctor-tf.$$ 2>&1; then pass "terraform init + validate $envdir"
+  else fail "terraform validate $envdir:"; tail -5 /tmp/doctor-tf.$$ | sed 's/^/        /'; fi
+  rm -f /tmp/doctor-tf.$$
 }
 
 profile="${1:-local}"

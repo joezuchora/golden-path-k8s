@@ -12,7 +12,7 @@ approved separately and is done only when every exit criterion passes. Gaps the 
 
 | Item | Why | Source |
 |---|---|---|
-| Split AKS (control + workload clusters) with OpenTofu, `cilium_mode` managed and byo | The network contract must pass unchanged on both modes | ADR-0001, ADR-0003, D-027 |
+| Split AKS (control + workload clusters) with Terraform (D-088), `cilium_mode` managed and byo | The network contract must pass unchanged on both modes | ADR-0001, ADR-0003, D-027 |
 | App identity: one UAMI per app per env, federated to its ServiceAccount; Postgres with Entra auth | The identity promise kind can't keep | ADR-0008, D-022 |
 | The `azure` PostgreSQL composition live, Key Vault as the team's secret store | Proven statically in Phase 3 only | ADR-0002, D-064 |
 | Per-app secret scoping | On kind, credentials are scoped to a team and env | D-071 |

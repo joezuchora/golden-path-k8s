@@ -2,14 +2,14 @@
 # aks.sh: the only way to create, bootstrap and tear down an AKS environment (D-083). Mirrors infra/kind/bootstrap.sh.
 #
 #   preflight        make doctor PROFILE=cloud (read-only; D-084)
-#   plan             tofu plan for infra/envs/$GP_ENV → tfplan, and the run record
+#   plan             terraform plan for infra/envs/$GP_ENV → tfplan, and the run record
 #   up               apply tfplan. Refuses unless GP_CONFIRM_SUBSCRIPTION equals the tfvars subscription, and runs under
 #                    GP_APPLY_TIMEOUT (default 45m). A timeout or failure is a visible failure: run `down`.
 #   bootstrap        install what must exist before GitOps: Gateway API CRDs (workload clusters), Argo CD with Workload
 #                    Identity (control cluster), the cluster Secrets with their capability labels and per-environment
 #                    annotations, the root application, the EnvironmentConfig for compositions, and the Git status token
 #   down             delete the teams' applications and XRs (so Crossplane deletes what it composed), wait for every
-#                    managed resource to go, tofu destroy under GP_DESTROY_TIMEOUT (default 45m), then verify-teardown
+#                    managed resource to go, terraform destroy under GP_DESTROY_TIMEOUT (default 45m), then verify-teardown
 #   verify-teardown  assert from Azure itself (not from state) that nothing tagged with the environment id, no resource
 #                    group of the run and no role assignment of its identities remains. Exit 1 lists what's left.
 #
@@ -37,7 +37,7 @@ PLATFORM_REPO="https://github.com/$REPO_OWNER/$REPO_NAME.git"
 step() { printf '\n==> %s\n' "$*"; }
 die() { echo "FAIL: $*" >&2; exit 1; }
 tfv() { sed -n -E "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"?([^\"#]*[^\"#[:space:]])\"?.*$/\1/p" "$TFVARS" | head -1; }
-tofu_() { tofu -chdir="$ENVDIR" "$@"; }
+tf_() { terraform -chdir="$ENVDIR" "$@"; }
 
 [ -f "$TFVARS" ] || die "$TFVARS not found: copy $GP_ENV.tfvars.example and confirm every value with the environment owner"
 ENV_ID="$(tfv environment_id)"; SUB="$(tfv subscription_id)"; OWNER="$(tfv teardown_owner)"
@@ -52,26 +52,26 @@ with_timeout() { # <duration> <cmd…>: a hung apply or destroy becomes a visibl
 }
 kcfg() { echo "$KUBEDIR/aks-$ENV_ID-$1.yaml"; }
 k() { local c=$1; shift; kubectl --kubeconfig "$(kcfg "$c")" "$@"; }
-save_record() { tofu_ output -json 2>/dev/null | jq '{environment: .environment.value, clusters: .clusters.value, tenants: .tenants.value}' >"$RECORD.tmp" \
+save_record() { tf_ output -json 2>/dev/null | jq '{environment: .environment.value, clusters: .clusters.value, tenants: .tenants.value}' >"$RECORD.tmp" \
   && [ -s "$RECORD.tmp" ] && [ "$(jq -r '.environment.environment_id' "$RECORD.tmp")" = "$ENV_ID" ] && mv "$RECORD.tmp" "$RECORD" || rm -f "$RECORD.tmp"; }
 
 preflight() { step "cloud preflight (D-084)"; GP_ENV="$GP_ENV" bash "$ROOT/scripts/doctor.sh" cloud; }
 
 plan() {
   preflight
-  step "tofu plan ($ENVDIR)"
+  step "terraform plan ($ENVDIR)"
   az_ account set --subscription "$SUB"
-  tofu_ init -input=false -lockfile=readonly >/dev/null
-  tofu_ plan -input=false -out=tfplan
+  tf_ init -input=false -lockfile=readonly >/dev/null
+  tf_ plan -input=false -out=tfplan
   log plan "ok"
 }
 
 up() {
   [ "${GP_CONFIRM_SUBSCRIPTION:-}" = "$SUB" ] || die "refusing to apply: set GP_CONFIRM_SUBSCRIPTION=$SUB to confirm the subscription (billable resources)"
   [ -f "$ENVDIR/tfplan" ] || die "no tfplan: run '$0 plan' first and review it"
-  step "tofu apply (timeout ${GP_APPLY_TIMEOUT:-45m}, teardown owner $OWNER)"
+  step "terraform apply (timeout ${GP_APPLY_TIMEOUT:-45m}, teardown owner $OWNER)"
   log up "start"
-  if ! with_timeout "${GP_APPLY_TIMEOUT:-45m}" tofu -chdir="$ENVDIR" apply -input=false tfplan; then
+  if ! with_timeout "${GP_APPLY_TIMEOUT:-45m}" terraform -chdir="$ENVDIR" apply -input=false tfplan; then
     save_record; log up "FAILED or timed out"
     die "apply failed or timed out. Resources may exist: run '$0 down' (owner: $OWNER)"
   fi
@@ -101,7 +101,7 @@ bootstrap() {
   kubeconfigs
   local tenant sub ids crossplane argocd
   tenant="$(jq -r .environment.tenant_id "$RECORD")"; sub="$(jq -r .environment.subscription_id "$RECORD")"
-  ids="$(tofu_ output -json identities)"; crossplane="$(echo "$ids" | jq -r .crossplane)"; argocd="$(echo "$ids" | jq -r .argocd)"
+  ids="$(tf_ output -json identities)"; crossplane="$(echo "$ids" | jq -r .crossplane)"; argocd="$(echo "$ids" | jq -r .argocd)"
 
   local c
   for c in $(jq -r '.clusters.workloads | keys[]' "$RECORD"); do
@@ -132,7 +132,7 @@ bootstrap() {
   for c in $(jq -r '.clusters.workloads | keys[]' "$RECORD"); do
     local server group ca cfg
     server="$(jq -r --arg c "$c" '.clusters.workloads[$c].server' "$RECORD")"; group="$(jq -r --arg c "$c" '.clusters.workloads[$c].group' "$RECORD")"
-    ca="$(tofu_ output -json cluster_ca | jq -r --arg c "$c" '.[$c]')"
+    ca="$(tf_ output -json cluster_ca | jq -r --arg c "$c" '.[$c]')"
     # argocd-k8s-auth azure with workload identity (F55): the hub reaches the spoke with its federated identity, no kubeconfig.
     cfg="$(jq -cn --arg id "$argocd" --arg t "$tenant" --arg ca "$ca" '{execProviderConfig: {command: "argocd-k8s-auth", args: ["azure"],
       env: {AAD_ENVIRONMENT_NAME: "AzurePublicCloud", AZURE_CLIENT_ID: $id, AZURE_TENANT_ID: $t, AAD_LOGIN_METHOD: "workloadidentity"},
@@ -156,7 +156,7 @@ EOF
   step "EnvironmentConfig azure-platform (compositions, D-082): waits for Crossplane's CRD"
   for _ in $(seq 1 90); do k control get crd environmentconfigs.apiextensions.crossplane.io >/dev/null 2>&1 && break; sleep 10; done
   k control get crd environmentconfigs.apiextensions.crossplane.io >/dev/null 2>&1 || die "Crossplane's EnvironmentConfig CRD didn't appear in 15 minutes: check the crossplane Application on the control cluster"
-  jq -n --slurpfile r "$RECORD" --argjson pg "$(tofu_ output -json postgres)" '{apiVersion: "apiextensions.crossplane.io/v1beta1", kind: "EnvironmentConfig",
+  jq -n --slurpfile r "$RECORD" --argjson pg "$(tf_ output -json postgres)" '{apiVersion: "apiextensions.crossplane.io/v1beta1", kind: "EnvironmentConfig",
       metadata: {name: "azure-platform"},
       data: {environmentId: $r[0].environment.environment_id, location: $r[0].environment.location, tenantId: $r[0].environment.tenant_id,
              postgresSubnetId: $pg.subnet_id, postgresPrivateDnsZoneId: $pg.private_dns_zone_id,
@@ -196,10 +196,10 @@ down() {
     [ -z "$left" ] && echo "  no Crossplane managed resources left" \
       || { log down "managed resources still present"; die "Crossplane managed resources still exist after 20 minutes: $(echo "$left" | tr '\n' ' '). Fix them before destroy, or the tenant resource groups keep resources (owner: $OWNER)"; }
   else echo "  control cluster unreachable or never bootstrapped: skipping the XR drain (destroy fails if a tenant RG still holds resources)"; fi
-  step "tofu destroy (timeout ${GP_DESTROY_TIMEOUT:-45m})"
+  step "terraform destroy (timeout ${GP_DESTROY_TIMEOUT:-45m})"
   az_ account set --subscription "$SUB"
-  tofu_ init -input=false -lockfile=readonly >/dev/null
-  if ! with_timeout "${GP_DESTROY_TIMEOUT:-45m}" tofu -chdir="$ENVDIR" destroy -input=false -auto-approve; then
+  tf_ init -input=false -lockfile=readonly >/dev/null
+  if ! with_timeout "${GP_DESTROY_TIMEOUT:-45m}" terraform -chdir="$ENVDIR" destroy -input=false -auto-approve; then
     log down "destroy FAILED or timed out"; verify_teardown || true; die "destroy failed or timed out (owner: $OWNER)"
   fi
   rm -f "$KUBEDIR"/aks-"$ENV_ID"-*.yaml

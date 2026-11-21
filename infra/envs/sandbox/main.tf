@@ -1,6 +1,6 @@
 # Disposable AKS environment (Phase 4, D-083): one control cluster, one or more workload clusters, and a tenant per team
 # and env. Apply, bootstrap and teardown go through infra/aks/aks.sh, which enforces a timeout, an owner and a teardown
-# check; never run `tofu apply` here directly for a shared subscription.
+# check; never run `terraform apply` here directly for a shared subscription.
 
 data "azurerm_client_config" "current" {}
 
@@ -13,7 +13,7 @@ locals {
     "environment-id"   = var.environment_id
     "teardown-owner"   = var.teardown_owner
     "expires-on"       = var.expires_on
-    "managed-by"       = "opentofu"
+    "managed-by"       = "terraform"
     "contract-version" = "1.0"
   }
   platform_tags = merge(local.base_tags, {

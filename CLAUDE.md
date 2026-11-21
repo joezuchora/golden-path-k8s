@@ -69,13 +69,13 @@ they never define it. Cite each source only for what it actually says.
 - `make kind-up` / `make kind-down` (Docker required; use WSL2 or Git Bash on Windows); `make kind-sync` pushes the working
   tree to the in-cluster Gitea (D-043). kind targets use `.kube/golden-path.yaml`, never the global current context
 - `make validate`: all static checks (kubeconform, helm lint, `crossplane resource validate`, `crossplane composition render`
-  golden files, tofu fmt/validate) (D-040)
+  golden files, terraform fmt/validate) (D-040)
 - `make test-policies`. Single policy: `kyverno test platform/policies/tests/<policy-dir>`
 - `make e2e JOURNEY=<dir>` (Chainsaw on kind)
 - AKS (D-083, D-084): `make aks-preflight` (read-only), `make aks-plan`, `GP_CONFIRM_SUBSCRIPTION=<id> make aks-up`,
   `make aks-bootstrap`, `make aks-down` (runs `make aks-verify-teardown`). Never apply without the owner's confirmation
   of subscription, region, permissions, quota, budget, timeout and teardown owner
-- `tofu -chdir=infra/envs/<env> init|plan`; `tofu fmt -recursive -check infra && tflint --recursive`
+- `terraform -chdir=infra/envs/<env> init|plan` (Terraform, D-088); `terraform fmt -recursive -check infra && tflint --recursive`
 - Backstage (`backstage/app`): `yarn install`, `yarn start`, `yarn tsc`, `yarn test`
 
 ## Docs

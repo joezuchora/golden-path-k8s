@@ -72,7 +72,7 @@ e2e-all: tools ## Run every Chainsaw suite on kind
 aks-preflight: tools ## Cloud preflight, read-only (= make doctor PROFILE=cloud)
 	bash infra/aks/aks.sh preflight
 
-aks-plan: tools ## tofu plan for infra/envs/<GP_ENV> (after the preflight)
+aks-plan: tools ## terraform plan for infra/envs/<GP_ENV> (after the preflight)
 	bash infra/aks/aks.sh plan
 
 aks-up: ## Apply the reviewed plan (needs GP_CONFIRM_SUBSCRIPTION=<subscription id>; billable)
@@ -81,7 +81,7 @@ aks-up: ## Apply the reviewed plan (needs GP_CONFIRM_SUBSCRIPTION=<subscription 
 aks-bootstrap: ## Argo CD, cluster Secrets, root app and EnvironmentConfig on the AKS clusters
 	bash infra/aks/aks.sh bootstrap
 
-aks-down: ## Drain XRs, tofu destroy, verify nothing is left
+aks-down: ## Drain XRs, terraform destroy, verify nothing is left
 	bash infra/aks/aks.sh down
 
 aks-verify-teardown: ## Assert from Azure that nothing from the environment remains

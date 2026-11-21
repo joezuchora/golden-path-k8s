@@ -4,7 +4,7 @@
 #   helm         helm lint on every chart
 #   crossplane   crossplane resource validate (XRDs + compositions) and composition render golden files (D-040)
 #   invariants   CLAUDE.md invariants that a lint can prove
-#   tofu         OpenTofu fmt, init (no backend) + validate per env root, provider lock coverage, tag lint, tflint
+#   terraform    terraform fmt, init (no backend) + validate per env root, provider lock coverage, tag lint, tflint
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="$ROOT/.bin:$PATH"
@@ -214,21 +214,21 @@ for key in $(yq -r '.notifications.templates // {} | keys | .[]' platform/bootst
 done
 [ $nbad = 0 ] && pass "every Argo CD notification template and trigger parses as YAML"
 
-hdr "tofu (D-083)"
+hdr "terraform (D-083, D-088)"
 # Static only: init without a backend downloads the pinned providers; nothing here talks to Azure.
 if compgen -G "infra/envs/*/*.tf" >/dev/null; then
-  tofu fmt -recursive -check infra >"$W/fmt" 2>&1 && pass "tofu fmt" || fail "tofu fmt: $(head -5 "$W/fmt" | tr '\n' ' ')"
+  terraform fmt -recursive -check infra >"$W/fmt" 2>&1 && pass "terraform fmt" || fail "terraform fmt: $(head -5 "$W/fmt" | tr '\n' ' ')"
   for e in infra/envs/*/; do
     e="${e%/}"
-    if ! tofu -chdir="$e" init -backend=false -input=false -lockfile=readonly >"$W/init" 2>&1; then
-      fail "tofu init $e (readonly lock): $(grep -iE 'error' "$W/init" | head -2)"; continue
+    if ! terraform -chdir="$e" init -backend=false -input=false -lockfile=readonly >"$W/init" 2>&1; then
+      fail "terraform init $e (readonly lock): $(grep -iE 'error' "$W/init" | head -2)"; continue
     fi
-    tofu -chdir="$e" validate -no-color >"$W/tv" 2>&1 && pass "tofu validate $e" || fail "tofu validate $e: $(grep -A3 -i error "$W/tv" | head -6 | tr '\n' ' ')"
+    terraform -chdir="$e" validate -no-color >"$W/tv" 2>&1 && pass "terraform validate $e" || fail "terraform validate $e: $(grep -A3 -i error "$W/tv" | head -6 | tr '\n' ' ')"
     # The committed lock covers every platform tools/install.sh supports, so no contributor's init rewrites it.
     nh="$(grep -c '"h1:' "$e/.terraform.lock.hcl" || true)"
-    [ "${nh:-0}" -ge 10 ] && pass "$e/.terraform.lock.hcl has $nh h1 hashes (5 platforms × providers)" || fail "$e/.terraform.lock.hcl has ${nh:-0} h1 hashes; run: tofu -chdir=$e providers lock -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=windows_amd64"
+    [ "${nh:-0}" -ge 10 ] && pass "$e/.terraform.lock.hcl has $nh h1 hashes (5 platforms × providers)" || fail "$e/.terraform.lock.hcl has ${nh:-0} h1 hashes; run: terraform -chdir=$e providers lock -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=windows_amd64"
     # ADR-0007: every azurerm resource whose type supports tags sets tags (the provider schema decides what's taggable).
-    tofu -chdir="$e" providers schema -json 2>/dev/null \
+    terraform -chdir="$e" providers schema -json 2>/dev/null \
       | jq -r '.provider_schemas | to_entries[] | select(.key | endswith("/azurerm")) | .value.resource_schemas | to_entries[]
                | select(.value.block.attributes.tags != null) | .key' | tr -d '\r' | sort -u >"$W/taggable"
     [ -s "$W/taggable" ] || { fail "couldn't read the azurerm schema for the tag check ($e)"; continue; }
@@ -245,7 +245,7 @@ if compgen -G "infra/envs/*/*.tf" >/dev/null; then
         grep -qx "$t" "$W/taggable" && [ "$has" = 0 ] && echo "$t.$n ($where)"; done || true)"
   [ -z "$untagged" ] && pass "every taggable azurerm resource sets tags (ADR-0007)" || fail "taggable resources without tags (ADR-0007): $untagged"
   tflint --recursive --chdir infra >"$W/tflint" 2>&1 && pass "tflint" || fail "tflint: $(grep -E 'Warning|Error' "$W/tflint" | head -3 | tr '\n' ' ')"
-else fail "no OpenTofu root under infra/envs/ (Phase 4 ships infra/envs/sandbox)"; fi
+else fail "no Terraform root under infra/envs/ (Phase 4 ships infra/envs/sandbox)"; fi
 
 printf '\nvalidate: %d failed, %d skipped\n' "$fails" "$skips"
 [ "$fails" -eq 0 ]

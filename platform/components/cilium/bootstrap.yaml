@@ -1,5 +1,5 @@
 # Cilium is the CNI, so it must exist before Argo CD can run. It's installed by infra/kind/bootstrap.sh on kind and by
-# OpenTofu on AKS byo (Phase 4); it is never rendered by a placement ApplicationSet (D-023 lint: exactly one of
+# Terraform on AKS byo (Phase 4); it is never rendered by a placement ApplicationSet (D-023 lint: exactly one of
 # control-plane.yaml, workloads.yaml or bootstrap.yaml per component).
 component: cilium
 namespace: kube-system

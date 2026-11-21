@@ -1,13 +1,13 @@
 # PostgreSQLInstance, azure backend (AKS): Azure Database for PostgreSQL Flexible Server with Entra authentication only
 # (ADR-0008: no stored password), namespaced managed resources only (D-024), D-082:
-# - It lives in the tenant's resource group (rg per team and env, created by OpenTofu), so Crossplane's identity needs
+# - It lives in the tenant's resource group (rg per team and env, created by Terraform), so Crossplane's identity needs
 #   Contributor on tenant resource groups only, and "the tenant resource group is empty" is the deletion check (ADR-0002).
-# - It's VNet-integrated: a delegated subnet and a private DNS zone linked to the workload VNet, both created by OpenTofu.
+# - It's VNet-integrated: a delegated subnet and a private DNS zone linked to the workload VNet, both created by Terraform.
 #   publicNetworkAccessEnabled is false; the app reaches it only by its private FQDN.
 # - The app's own identity becomes the server's Entra administrator through the AppIdentity XR (ADR-0008, next slice), so
 #   this composition grants no access by itself.
 # Everything environment-specific comes from the EnvironmentConfig "azure-platform", which infra/aks/aks.sh writes from
-# OpenTofu's outputs. The composed Secret holds one key, `connection`: the connection details as JSON (host, port, dbname,
+# Terraform's outputs. The composed Secret holds one key, `connection`: the connection details as JSON (host, port, dbname,
 # sslmode). The PushSecret stores it in the team's Key Vault under the XR's name, and golden-service's ExternalSecret
 # (dataFrom.extract) unpacks it into the same keys the local composition delivers. Azure tags are derived from the tenant
 # Namespace's labels (ADR-0007), plus the environment id that the teardown check queries (D-083).

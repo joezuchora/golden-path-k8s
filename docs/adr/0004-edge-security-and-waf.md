@@ -25,7 +25,7 @@ that would dominate a demo deployment.
 | OSS Coraza in the gateway | No added cloud cost | Rule tuning and operations fall on the platform team |
 
 ## Decision
-`enable_edge_waf = false` by default. An opt-in OpenTofu module deploys Azure Front Door Premium with a WAF
+`enable_edge_waf = false` by default. An opt-in Terraform module (D-088) deploys Azure Front Door Premium with a WAF
 policy (managed rule set plus bot manager) and a Private Link origin to the gateway's internal load balancer.
 TLS is split: an AFD-managed certificate at the edge and cert-manager at the origin. Costs will be computed
 from the Azure pricing page in Phase 3, not estimated.

@@ -77,7 +77,7 @@ rules:
     resources: [namespaces]
     verbs: [get, list, watch]
 {{- if eq $p "azure" }}
-{{- /* Workload Identity for the providers (D-081, D-083): no stored credential. OpenTofu creates one UAMI for Crossplane and
+{{- /* Workload Identity for the providers (D-081, D-083): no stored credential. Terraform creates one UAMI for Crossplane and
 federates it to each provider's service account by name (system:serviceaccount:crossplane-system:<provider>), so each
 provider gets a DeploymentRuntimeConfig that fixes its service account's name. The IDs come from the cluster Secret's
 platform-values annotation (global.azure), written by infra/aks/aks.sh; they never live in Git. */}}
