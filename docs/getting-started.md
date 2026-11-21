@@ -1,14 +1,14 @@
 # Getting started: prerequisites and setup
 
-Everything here is checked by one command, `make doctor` (D-056). Problems people have already hit, and their fixes, are in
-[known issues](known-issues.md); what comes next is in the [roadmap](../ROADMAP.md). If the doctor passes, the commands it gates will run. If a
-step here and the doctor disagree, the doctor is right, and this page has a bug.
+Run `make doctor` for local kind prerequisites or select the profile for your task (D-056). Problems people have already
+hit, and their fixes, are in [known issues](known-issues.md); what comes next is in the [roadmap](../ROADMAP.md). Run the
+corresponding commands below to verify that your setup works.
 
 | You want to | Profile | Status |
 |---|---|---|
 | Run the platform and the journeys on your laptop (kind) | `make doctor` (`local`) | Available (Phase 3) |
 | Run the docs gate (`scripts/verify-docs.sh`) | `make doctor PROFILE=docs` | Available |
-| Run the signed-image journeys (J1 allow path) against GHCR | `make doctor PROFILE=github` | Available (Phase 3) |
+| Run the journeys that use CI-built images from GHCR | `make doctor PROFILE=github` | Available (Phase 3) |
 | Run on AKS (`managed`; `byo` later) | `make doctor PROFILE=cloud` | **Phase 4 in progress:** preflight and Terraform ready; no live run yet |
 
 ## 1. Local (kind)
@@ -65,8 +65,8 @@ The doctor warns when they're lower.
 ### Networking pitfalls
 
 - **Subnet clashes.** Docker's default address pools can clash "with existing networks (like VPNs, labs, etc)"; the fix is
-  `default-address-pools` in Docker's `daemon.json` (F37). The kind Gateway pool assumes the kind network is
-  `172.18.0.0/16`; the doctor fails if it isn't.
+  `default-address-pools` in Docker's `daemon.json` (F37). If the `kind` network already exists, the doctor checks that it
+  has an IPv4 `/16`. At bootstrap, the platform derives the Gateway address pool from that subnet (D-068).
 - **Node IPs aren't reachable from the host** on Docker Desktop: "you cannot reach the kind nodes via IP" (F37). The journeys
   therefore test routes from a client pod inside the cluster, never from the host.
 - **Proxies and firewalls:** every endpoint the doctor lists must be reachable over HTTPS.
@@ -80,6 +80,8 @@ The doctor warns when they're lower.
 
 ### Run it
 
+Before running the full suite with `make e2e-all`, complete the [GitHub fixture setup](#3-github-signed-images-j1-allow-path).
+
 ```bash
 make hooks           # once per clone: keeps the primary checkout on main; work on branches in worktrees (D-089)
 make doctor          # every check above
@@ -91,9 +93,9 @@ make kind-sync       # after a local change: push the working tree to the in-clu
 make kind-down
 ```
 
-`make kind-up` pushes a snapshot of your working tree (tracked and untracked files, minus ignored ones) to the in-cluster
-Gitea, and Argo CD reconciles the platform from there (D-043). Nothing on your machine is committed or pushed anywhere
-else.
+`make kind-up` and `make kind-sync` publish your working-tree contents for tracked files to the in-cluster Gitea.
+Argo CD reconciles from that snapshot (D-043). To include a new file, add it to Git with `git add`. If you delete a tracked file
+locally, the next snapshot includes the deletion (D-066). Nothing on your machine is committed or pushed anywhere else.
 
 **kubeconfig.** The Makefile points every kind target at its own kubeconfig, `.kube/golden-path.yaml`, refreshed from kind
 before each run. Changing your global current context (for example by enabling Docker Desktop's own Kubernetes) can't
@@ -114,14 +116,23 @@ k8s-app=kube-dns` shows no `i/o timeout` errors.
 
 ## 3. GitHub: signed images (J1 allow path)
 
-Only the journeys that admit a CI-signed image need this. Everything else on kind runs without GitHub.
+The ship, rejected-change, unhealthy-rollout, database, network-contract and placement suites use CI-built images (placement
+ships a probe app to prove workload-group assignment, D-079). Kind bootstrap and the onboarding suite can run without those
+fixtures.
 
 | Requirement | Why |
 |---|---|
 | A **public** repository (this one, or your fork) | Free 4 CPU / 16 GB runners (F28), and the keyless signer and caller identities admission checks (D-046) |
 | **Public GHCR packages** `hello` and `hello-unsigned`, set once by the package admin after build-hello first publishes them | GitHub's docs say a new package starts private and inherits the repo's access permissions "but not the visibility" (F43). kind and `kyverno test` pull the images anonymously, so without this step J1 passes preflight and then fails to pull. Set it on each package's page: **Package settings → Danger Zone → Change visibility → Public**. GitHub's page may warn that this can't be undone; read the warning before confirming. `make doctor PROFILE=github` proves an anonymous pull of the exact digests in `tests/e2e/lib/images.env` |
 | GitHub Actions enabled, with `packages: write`, `id-token: write` and `attestations: write` granted to the build workflow | Push to GHCR, sign keyless and attest (ADR-0005) |
-| Your fork's coordinates rendered with `scripts/render-repo-coords.sh` (arrives in M7) | The admission policy pins the signer and caller to a real repo (D-026, D-046); a fork has different coordinates |
+| Your fork's coordinates rendered with `bash scripts/render-repo-coords.sh <owner>/<name>` before its first signed build | The admission policy pins the signer and caller to a real repo (D-026, D-046); a fork has different coordinates |
+
+If you're setting up a fork or refreshing its fixtures:
+
+1. Find a successful `build-hello` run for the branch or tag you intend to use. Pushing sample app or build workflow changes triggers that workflow.
+2. Download the `images-env` artifact from the run. Check that `HELLO_BUILT_FROM` in the artifact matches the run's commit SHA.
+3. Copy the three `HELLO_*` assignments into `tests/e2e/lib/images.env`, keeping the file's comments. Commit fixture updates through a PR (D-069).
+4. Run `make doctor PROFILE=github` to check anonymous registry access for both digests, then run `make e2e-all` against the bootstrapped kind cluster.
 
 A keyless signature from a laptop carries your personal email identity and is **rejected by design**. Signed images come
 only from CI. Keyless signatures and their certificates are recorded in the public Rekor log: "Signing events are recorded in a
