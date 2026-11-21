@@ -19,7 +19,7 @@ echo "== (a) unsigned image"
 printf 'app: hello\nenv: dev\nimage: %s\nreplicas: 1\n' "$HELLO_UNSIGNED" >/tmp/j2a.$$
 sha="$(ship team-a hello dev /tmp/j2a.$$ j2-unsigned)"; rm -f /tmp/j2a.$$
 echo "merged team-a/deploy → $sha"
-if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev 360)"; then actionable "$d" image-admission; else fail=1; fi
+if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev-in-cluster 360)"; then actionable "$d" image-admission; else fail=1; fi
 if kubectl -n team-a-dev get deploy hello >/dev/null 2>&1; then echo "FAIL the unsigned Deployment exists"; fail=1
 else echo "PASS nothing was admitted (no Deployment in team-a-dev)"; fi
 
@@ -32,7 +32,7 @@ replicas: 21
 ' "$HELLO_SIGNED" >/tmp/j2c.$$
 sha="$(ship team-a hello dev /tmp/j2c.$$ j2-bad-values)"; rm -f /tmp/j2c.$$
 echo "merged team-a/deploy → $sha"
-if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev 300)"; then
+if d="$(wait_status team-a/deploy "$sha" failure team-a-hello-dev-in-cluster 300)"; then
   ok=1; for part in "Render failed:" "apps/hello/dev.yaml" "replicas" "Fix:" "Docs: https://"; do
     case "$d" in *"$part"*) ;; *) echo "FAIL render-failure status lacks '$part': ${d:0:300}"; fail=1; ok=0 ;; esac
   done

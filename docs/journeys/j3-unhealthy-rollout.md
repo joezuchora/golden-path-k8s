@@ -10,7 +10,7 @@ its probes check 8080. The image is valid and admitted; the rollout never become
 
 ## What the developer sees
 
-1. Argo CD marks `team-a-hello-dev` **Degraded** once the Deployment misses its progress deadline
+1. Argo CD marks `team-a-hello-dev-in-cluster` **Degraded** once the Deployment misses its progress deadline
    (`progressDeadlineSeconds`, golden-service value).
 2. The merge commit gets a **failure** status: *Synced; health Degraded: … Next: scripts/idp-diagnose.sh hello dev --team
    team-a*. The suite runs that exact command from the status, with the developer's identity.
@@ -20,7 +20,7 @@ its probes check 8080. The image is valid and admitted; the rollout never become
    ```text
    $ scripts/idp-diagnose.sh hello dev --team team-a
    STEP         STATUS  CURRENT STATE
-   Sync         OK      Argo CD team-a-hello-dev: Succeeded
+   Sync         OK      Argo CD team-a-hello-dev-in-cluster: Succeeded
    Rollout      FAIL    updated 1/1, available 0/1, ready 0/1, total 1; pods: NotReady; ProgressDeadlineExceeded: …;
                         events: Unhealthy: Liveness probe failed: Get "http://…:8080/healthz": … connection refused
    Route        OK      https://hello-team-a-dev.apps.kind.test accepted by the platform gateway

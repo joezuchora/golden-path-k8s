@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run
 - **CNCF capability domain(s):** Infrastructure services; Data services; APIs for automatically provisioning capabilities
-- **Related decisions:** D-003 (Revisited), D-024, D-002, D-040, D-041, D-053, D-064
+- **Related decisions:** D-003 (Revisited), D-024, D-002, D-040, D-041, D-053, D-064, D-078, D-082
 
 ## Context
 App teams need databases, caches and networks without filing tickets and without holding cloud credentials.
@@ -43,6 +43,9 @@ Crossplane v2:
 - Lifecycle: readiness via auto-ready conditions; drift is corrected continuously; `managementPolicies` is the
   documented escape hatch for observe-only; deletion uses `deletionPolicy: Delete`, Crossplane `Usage` for
   ordering, and the per-tenant resource group as the blast-radius boundary.
+- **On AKS (D-082):** the tenant resource group is created per team and env by OpenTofu, and compositions place
+  resources in it (Crossplane's identity is Contributor there only). The azure PostgreSQL server is VNet-integrated, and
+  its connection details travel as one JSON key under the XR's name.
 - **Namespaced managed resources only (D-024).** A namespaced XR "can only compose resources in the same namespace",
   so the earlier `LegacyCluster` fallback was invalid and has been removed. The `provider-upjet-azure` source has
   namespaced `v1beta1` APIs for everything the first compositions need: `dbforpostgresql` (`FlexibleServer`,

@@ -29,7 +29,8 @@ they never define it. Cite each source only for what it actually says.
   policy set v1. A breaking change needs a major bump, an ADR, and a migration guide.
 - Placement (D-023): every cluster, including in-cluster, is a declarative Argo CD cluster Secret with independent
   capability labels `platform.example.org/hosts-control-plane` and `platform.example.org/hosts-workloads`.
-  Each ApplicationSet selects on one capability label, never on a cluster name. kind sets both labels.
+  Each ApplicationSet selects on one capability label, never on a cluster name; team apps also select the env's
+  `platform.example.org/workload-group` from the team file, and their Application names carry the cluster (D-079). kind sets both labels.
 - Tenant authorization is enforced at the backend, never by UI filtering (D-025). A backend is exposed to
   developers only after its cross-tenant deny test passes.
 - App identity (ADR-0008): one UAMI per app per environment, federated to the app's ServiceAccount, created by a
@@ -71,6 +72,9 @@ they never define it. Cite each source only for what it actually says.
   golden files, tofu fmt/validate) (D-040)
 - `make test-policies`. Single policy: `kyverno test platform/policies/tests/<policy-dir>`
 - `make e2e JOURNEY=<dir>` (Chainsaw on kind)
+- AKS (D-083, D-084): `make aks-preflight` (read-only), `make aks-plan`, `GP_CONFIRM_SUBSCRIPTION=<id> make aks-up`,
+  `make aks-bootstrap`, `make aks-down` (runs `make aks-verify-teardown`). Never apply without the owner's confirmation
+  of subscription, region, permissions, quota, budget, timeout and teardown owner
 - `tofu -chdir=infra/envs/<env> init|plan`; `tofu fmt -recursive -check infra && tflint --recursive`
 - Backstage (`backstage/app`): `yarn install`, `yarn start`, `yarn tsc`, `yarn test`
 

@@ -1,9 +1,16 @@
-# PostgreSQLInstance, azure backend (AKS, Phase 4): Azure Database for PostgreSQL Flexible Server with Entra authentication
-# only (ADR-0008: no stored password), in a resource group owned by this XR, using namespaced managed resources only
-# (D-024). Region and tenant come from the platform's EnvironmentConfig "azure-platform" (written by OpenTofu in Phase 4).
-# The composed Secret carries host, port, dbname and sslmode; a composed PushSecret delivers it to the team's Key Vault
-# store (ADR-0002). Azure tags are derived from the tenant Namespace's labels (ADR-0007).
-# Phase 3 proves this composition statically (crossplane resource validate + a render golden file); Phase 4 runs it.
+# PostgreSQLInstance, azure backend (AKS): Azure Database for PostgreSQL Flexible Server with Entra authentication only
+# (ADR-0008: no stored password), namespaced managed resources only (D-024), D-082:
+# - It lives in the tenant's resource group (rg per team and env, created by OpenTofu), so Crossplane's identity needs
+#   Contributor on tenant resource groups only, and "the tenant resource group is empty" is the deletion check (ADR-0002).
+# - It's VNet-integrated: a delegated subnet and a private DNS zone linked to the workload VNet, both created by OpenTofu.
+#   publicNetworkAccessEnabled is false; the app reaches it only by its private FQDN.
+# - The app's own identity becomes the server's Entra administrator through the AppIdentity XR (ADR-0008, next slice), so
+#   this composition grants no access by itself.
+# Everything environment-specific comes from the EnvironmentConfig "azure-platform", which infra/aks/aks.sh writes from
+# OpenTofu's outputs. The composed Secret holds one key, `connection`: the connection details as JSON (host, port, dbname,
+# sslmode). The PushSecret stores it in the team's Key Vault under the XR's name, and golden-service's ExternalSecret
+# (dataFrom.extract) unpacks it into the same keys the local composition delivers. Azure tags are derived from the tenant
+# Namespace's labels (ADR-0007), plus the environment id that the teardown check queries (D-083).
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -29,14 +36,16 @@ spec:
             {{- range (index (index $er "namespace" | default (dict)) "items" | default (list)) }}{{ $nsl = .resource.metadata.labels }}{{ end }}
             {{- $env := dict }}
             {{- range (index (index $er "environment" | default (dict)) "items" | default (list)) }}{{ $env = .resource.data }}{{ end }}
+            {{- $rg := "" }}
+            {{- if $env }}{{ $rg = index (default (dict) $env.tenantResourceGroups) $ns | default "" }}{{ end }}
             {{- $tags := dict }}
             {{- range $k := list "team" "owner" "cost-center" "env" "data-classification" "contract-version" }}
             {{- $key := printf "platform.example.org/%s" $k }}
             {{- if hasKey $nsl $key }}{{ $_ := set $tags $k (index $nsl $key) }}{{ end }}
             {{- end }}
             {{- $_ := set $tags "dependency" $name }}
+            {{- if $env }}{{ $_ := set $tags "environment-id" ($env.environmentId | default "") }}{{ end }}
             {{- $labels := dict "platform.example.org/dependency" $name }}
-            {{- $rg := printf "rg-%s-%s" $ns $name | trunc 90 }}
             {{- $server := printf "%s-%s" $ns $name | trunc 63 | trimSuffix "-" }}
             {{- $pc := dict "kind" "ClusterProviderConfig" "name" "default" }}
             ---
@@ -51,21 +60,7 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: azure-platform
-            {{- if and $nsl $env }}
-            ---
-            apiVersion: azure.m.upbound.io/v1beta1
-            kind: ResourceGroup
-            metadata:
-              name: {{ $name }}
-              labels: {{ toJson $labels }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: resource-group
-                crossplane.io/external-name: {{ $rg }}
-            spec:
-              providerConfigRef: {{ toJson $pc }}
-              forProvider:
-                location: {{ $env.location | quote }}
-                tags: {{ toJson $tags }}
+            {{- if and $nsl $env $rg }}
             ---
             apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
             kind: FlexibleServer
@@ -79,11 +74,13 @@ spec:
               providerConfigRef: {{ toJson $pc }}
               forProvider:
                 location: {{ $env.location | quote }}
-                resourceGroupNameSelector: {matchControllerRef: true}
+                resourceGroupName: {{ $rg | quote }}
                 version: {{ $xr.spec.version | quote }}
                 skuName: B_Standard_B1ms
                 storageMb: {{ mul (max 32 (int $xr.spec.storageGB)) 1024 }}
                 publicNetworkAccessEnabled: false
+                delegatedSubnetId: {{ $env.postgresSubnetId | quote }}
+                privateDnsZoneId: {{ $env.postgresPrivateDnsZoneId | quote }}
                 authentication:
                   activeDirectoryAuthEnabled: true
                   passwordAuthEnabled: false
@@ -117,10 +114,7 @@ spec:
                 gotemplating.fn.crossplane.io/composition-resource-name: connection-secret
             type: Opaque
             stringData:
-              host: {{ $fqdn }}
-              port: "5432"
-              dbname: app
-              sslmode: require
+              connection: {{ dict "host" $fqdn "port" "5432" "dbname" "app" "sslmode" "require" | toJson | quote }}
             ---
             apiVersion: external-secrets.io/v1alpha1
             kind: PushSecret
@@ -138,12 +132,13 @@ spec:
                 secret: {name: {{ printf "%s-conn" $name }}}
               data:
                 - match:
-                    remoteRef: {remoteKey: {{ printf "%s-%s" $ns $name }}}
+                    secretKey: connection
+                    remoteRef: {remoteKey: {{ $name }}}
             ---
             apiVersion: {{ $xr.apiVersion }}
             kind: {{ $xr.kind }}
             status:
-              connectionSecret: {{ printf "%s-%s" $ns $name }}
+              connectionSecret: {{ $name }}
             {{- end }}
             {{- end }}
     - step: ready

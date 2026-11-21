@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P2 An identity
 - **CNCF capability domain(s):** Identity and secret services; Security services
-- **Related decisions:** D-022, D-010, D-028, D-029
+- **Related decisions:** D-022, D-010, D-028, D-029, D-082, D-086
 
 ## Context
 Promise 2 is, in the blog's words, "An identity": "Your app reaches Azure services without a stored secret", delivered
@@ -43,6 +43,10 @@ this, "secretless" is a claim about the platform's plumbing, not a promise to ap
 `local` Postgres composition uses a brokered password (via the local SecretStore). This is documented as the
 **one place kind deviates from the contract**. Real federation is an **AKS release gate**: AKS support isn't declared
 until the fitness check below passes there.
+
+**Phase 4 design (D-082, D-086, Proposed):** for the first dependency, the app's UAMI becomes the Entra administrator
+of its own Flexible Server (one server per XR), so no SQL bootstrap job is needed; federated credentials are created
+for every cluster in the env's workload group (D-079).
 
 ## Consequences
 - Positive: no stored secret for Azure-native dependencies; per-app blast radius; identity lifecycle tied to the app.

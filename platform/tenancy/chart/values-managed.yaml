@@ -1,0 +1,11 @@
+# AKS, cilium_mode=managed (D-005). Connection secrets go through each team's Key Vault (D-078); the vault URLs and
+# identities come from the cluster Secret's tenancy-values annotation (D-081).
+secrets:
+  backend: keyvault
+# Envoy Gateway (D-006): gateway traffic comes from the Envoy proxy pods in the gateway's namespace, not from Cilium's
+# reserved ingress identity.
+gatewayIngress:
+  fromEntities: []
+  fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: envoy-gateway-system

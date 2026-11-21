@@ -1,0 +1,21 @@
+# AKS profile (D-080, D-085), applied by infra/aks/aks.sh bootstrap on the control cluster.
+# Workload Identity: the application controller and the server reach the workload clusters with argocd-k8s-auth azure
+# (AAD_LOGIN_METHOD=workloadidentity, F55). The AKS webhook projects the federated token into pods with this label; the
+# service accounts' client-id and tenant-id annotations are set by aks.sh from OpenTofu's outputs (they aren't in Git).
+controller:
+  podLabels: {azure.workload.identity/use: "true"}
+server:
+  podLabels: {azure.workload.identity/use: "true"}
+notifications:
+  # Commit statuses go to the teams' deploy repos on GitHub (D-080). Same path and body as Gitea (F32); the token is a
+  # fine-grained token with commit-status write on those repos only, loaded by aks.sh from GP_GITHUB_STATUS_TOKEN.
+  notifiers:
+    service.webhook.git: |
+      url: https://api.github.com
+      headers:
+        - name: Authorization
+          value: Bearer $git-token
+        - name: Accept
+          value: application/vnd.github+json
+        - name: Content-Type
+          value: application/json

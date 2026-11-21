@@ -1,0 +1,2 @@
+# AKS (the control cluster's profile is always managed, D-083): the teams' deploy repos are on GitHub (D-080).
+gitApi: https://api.github.com

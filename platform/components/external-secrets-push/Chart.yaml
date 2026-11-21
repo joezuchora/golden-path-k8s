@@ -1,0 +1,13 @@
+apiVersion: v2
+name: external-secrets-push
+description: >-
+  External Secrets on a control-plane-only cluster (D-078): runs the compositions' PushSecrets to each team's Key Vault.
+  Renders nothing on a cluster that also hosts workloads (kind), where the workloads install already serves both.
+  The dependency version must equal tools/versions.env.
+type: application
+version: 0.1.0
+dependencies:
+  - name: external-secrets
+    repository: https://charts.external-secrets.io
+    version: 2.14.0
+    condition: global.platform.controlPlaneOnly

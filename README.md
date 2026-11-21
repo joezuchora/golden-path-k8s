@@ -7,7 +7,8 @@ fulfill one promise, is measured against the CNCF capability domains, and names 
 weighed against.
 
 > **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
-> (`make e2e-all`); AKS is Phase 4.** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
+> (`make e2e-all`); Phase 4 (AKS) is in progress: OpenTofu and the cloud preflight are built and validated locally, with no live
+> Azure run yet ([tracker](docs/adr/README.md#phase-4-exit-criteria-tracker-d-087)).** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
 > [design evolution](docs/design-evolution.md). What comes next: [roadmap](ROADMAP.md); gotchas already solved:
 > [known issues](docs/known-issues.md).
 

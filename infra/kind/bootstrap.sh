@@ -119,7 +119,7 @@ gitops() {
 case "${1:-up}" in
   preflight) preflight ;;
   up) preflight; cluster; gateway_api; cilium; gitea; argocd; seed_git; gitops; converge; step "kind-up done (the platform has converged; Argo CD reconciles it from Gitea)"; k get nodes -o wide ;;
-  sync-git) argocd; seed_git ;;   # after a local change: re-apply Argo CD's bootstrap-owned values, push the tracked tree to Gitea
+  sync-git) argocd; seed_git; gitops ;;   # after a local change: re-apply Argo CD's bootstrap-owned values and the cluster Secret, push the tracked tree to Gitea
   down) kind delete cluster --name "$CLUSTER" ;;
   *) echo "usage: $0 up|down|preflight|sync-git"; exit 2 ;;
 esac

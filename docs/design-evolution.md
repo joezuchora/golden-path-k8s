@@ -244,3 +244,21 @@ with 8 GiB (D-074).
 The run also settled two questions: the keyless-signed image passed the real admission policy in CI (the cosign format
 concern in F41), and the new GHCR packages could be pulled anonymously without a settings change (F48), though the
 doctor keeps checking that outcome.
+
+## 2026-11-21: Phase 4, slice 1 (D-072 → D-079, D-078 to D-087)
+
+Phase 3 placed every team app on every workload cluster and named its Application `<team>-<app>-<env>`, which was
+correct for one spoke and a collision for two (D-072). Before AKS adds a spoke, the owner chose explicit assignment by
+workload group in the team definition and cluster-suffixed names (D-079). The rename happens now, while only kind
+clusters exist; the placement suite proves both halves (an ungrouped cluster gets no team apps, a second cluster in the
+group gets a second Application).
+
+The split topology needed answers Phase 3 deferred. External Secrets now also runs on a control-only cluster, guarded so
+kind keeps one install (D-078), and per-environment IDs reach the charts through the cluster Secret, the same carrier the
+profile already used (D-081). Reading the azure composition against the pinned provider turned up a key mismatch that no
+Phase 3 test could catch (the pushed key `<namespace>-<name>` vs. the `<name>` golden-service reads), fixed with the move
+to the tenant resource group and VNet integration (D-082). The Workload Identity paths for Argo CD and ESO, and the
+absence of a documented whole-Secret PushSecret for Key Vault, were checked against their primary docs first (F55, F56).
+
+Nothing in this slice has run on Azure. The tracker in the Decision Log keeps local evidence and live evidence apart, and
+`infra/aks/aks.sh` refuses to apply until the subscription is confirmed (D-083 to D-087).

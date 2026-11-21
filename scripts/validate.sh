@@ -4,7 +4,7 @@
 #   helm         helm lint on every chart
 #   crossplane   crossplane resource validate (XRDs + compositions) and composition render golden files (D-040)
 #   invariants   CLAUDE.md invariants that a lint can prove
-#   tofu         OpenTofu fmt/validate (no roots until Phase 4: explicit SKIP)
+#   tofu         OpenTofu fmt, init (no backend) + validate per env root, provider lock coverage, tag lint, tflint
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="$ROOT/.bin:$PATH"
@@ -27,12 +27,18 @@ render_all() { # name → rendered file, for every chart the platform ships, per
     for p in kind managed byo; do
       local vf=(-f "$c/values.yaml"); [ -f "$c/values.yaml" ] || vf=()
       [ -f "$c/values-$p.yaml" ] && vf+=(-f "$c/values-$p.yaml")
+      [ "$p" != kind ] && vf+=(-f scripts/ci/platform-values-aks.yaml)   # the AKS cluster Secret's platform-values (D-081)
       if ! helm template "$(basename "$c")" "$c" "${vf[@]}" >"$W/comp-$(basename "$c")-$p.yaml" 2>"$W/err"; then
         rm -f "$W/comp-$(basename "$c")-$p.yaml"
         if [ "$p" = kind ] || [ -f "$c/values-$p.yaml" ]; then fail "render $c ($p): $(head -3 "$W/err")"
         else printf 'INFO  %s: no %s profile yet (no values-%s.yaml, Phase 4): %s\n' "$c" "$p" "$p" "$(head -1 "$W/err" | cut -c1-120)"; fi
       fi
     done
+  done
+  # Components guarded by controlPlaneOnly (D-078) render nothing above; render their split-AKS mode too.
+  for c in $(grep -l 'condition: global.platform.controlPlaneOnly' platform/components/*/Chart.yaml | xargs -n1 dirname); do
+    helm template "$(basename "$c")" "$c" -f "$c/values.yaml" --set global.platform.controlPlaneOnly=true \
+      >"$W/comp-$(basename "$c")-control-plane-only.yaml" 2>"$W/err" || fail "render $c (controlPlaneOnly): $(head -3 "$W/err")"
   done
   for t in platform/tenancy/teams/*.yaml; do
     for cap in control-plane workloads; do
@@ -41,6 +47,15 @@ render_all() { # name → rendered file, for every chart the platform ships, per
         --set global.platform.gitBase=http://gitea-http.gitea.svc:3000 \
         --set global.platform.platformRepo=http://gitea-http.gitea.svc:3000/x/y.git >"$W/tenancy-$(basename "$t" .yaml)-$cap.yaml" 2>"$W/err" \
         || fail "render tenancy $t ($cap): $(head -3 "$W/err")"
+      # AKS profile (D-078, D-080, D-081): keyvault backend and GitHub deploy repos, with test identities for every env.
+      yq -o json '{"azure": {"tenantId": "00000000-0000-0000-0000-000000000000", "tenants": ([.envs[] as $e |
+          {"key": (.team + "-" + $e), "value": {"keyVaultUrl": "https://kv-test.vault.azure.net/",
+           "writerClientId": "11111111-1111-1111-1111-111111111111", "readerClientId": "22222222-2222-2222-2222-222222222222"}}] | from_entries)}}' "$t" >"$W/tv.json"
+      helm template t platform/tenancy/chart -f platform/tenancy/chart/values.yaml -f platform/tenancy/chart/values-managed.yaml \
+        -f platform/policies/verified-bases.yaml -f "$t" -f "$W/tv.json" --set capability=$cap \
+        --set global.platform.gitBase=https://github.com --set-string 'global.platform.deployRepoTemplate=joezuchora/gp-{team}-deploy' \
+        --set global.platform.platformRepo=https://github.com/x/y.git >"$W/tenancy-$(basename "$t" .yaml)-$cap-managed.yaml" 2>"$W/err" \
+        || fail "render tenancy $t ($cap, managed): $(head -3 "$W/err")"
     done
   done
   for p in kind managed byo; do
@@ -89,7 +104,7 @@ helm template xp "$xp" -f "$xp/values-kind.yaml" --show-only templates/platform.
 for c in cloudnative-pg external-secrets; do
   helm template x "platform/components/$c" --include-crds -f "platform/components/$c/values.yaml" 2>/dev/null | yq 'select(.kind == "CustomResourceDefinition")' >"$S/crds-$c.yaml"
 done
-helm template xp "$xp" -f "$xp/values-managed.yaml" --show-only templates/platform.yaml | yq 'select(.kind == "Provider")' >"$S/providers.yaml"
+helm template xp "$xp" -f "$xp/values-managed.yaml" -f scripts/ci/platform-values-aks.yaml --show-only templates/platform.yaml | yq 'select(.kind == "Provider")' >"$S/providers.yaml"
 for prov in local azure; do
   [ -f "$xp/compositions/$prov/postgresqlinstance.yaml" ] || fail "XRD postgresqlinstances has no $prov composition (CLAUDE.md: every XRD needs azure and local)"
 done
@@ -115,16 +130,29 @@ for c in platform/components/*/; do
   n="$(ls "$c" | grep -cE '^(control-plane|workloads|bootstrap)\.yaml$')"
   [ "$n" = 1 ] || fail "$c has $n placement files (need exactly one of control-plane.yaml, workloads.yaml, bootstrap.yaml)"
 done; pass "every component has exactly one placement file (D-023)"
-# ApplicationSets select clusters on exactly one capability label, never a name (D-023).
-for f in platform/appsets/*.yaml platform/tenancy/chart/templates/control-plane.yaml; do
-  grep -qE '^\s+- clusters:' "$f" || continue
-  keys="$(grep -A4 -E '^\s+- clusters:' "$f" | grep -oE 'platform\.example\.org/hosts-(control-plane|workloads)' | sort -u | wc -l | tr -d ' ')"
-  if grep -A6 -E '^\s+- clusters:' "$f" | grep -qE '^\s+(name|server):|values:'; then fail "$f: cluster generator selects on a name/server"
-  elif [ "$keys" != 1 ] && [ "$(grep -cE '^\s+- clusters:' "$f")" = 1 ]; then fail "$f: cluster generator must select on exactly one capability label"
-  fi
-done; pass "ApplicationSets select on capability labels only (D-023)"
+# ApplicationSets select clusters on exactly one capability label, never a name (D-023). The only other selector key is the
+# workload group, and only next to hosts-workloads (D-079). Checked on the rendered ApplicationSets.
+plbad=0
+for f in platform/appsets/*.yaml "$W"/tenancy-*.yaml; do
+  out="$(yq -o json -I0 'select(.kind == "ApplicationSet") | .. | select(tag == "!!map") | select(has("clusters")) | .clusters.selector' "$f" 2>/dev/null \
+    | jq -r --arg f "$(basename "$f")" '(.matchLabels // {} | keys) as $k
+        | ($k | map(select(startswith("platform.example.org/hosts-"))) | length) as $cap
+        | if ((.matchExpressions // []) | length) > 0 then "\($f): matchExpressions in a cluster selector"
+          elif $cap != 1 then "\($f): selects on \($k) (need exactly one capability label)"
+          elif ($k - ["platform.example.org/hosts-control-plane", "platform.example.org/hosts-workloads", "platform.example.org/workload-group"] | length) > 0 then "\($f): selects on \($k) (only a capability label and the workload group)"
+          elif ($k | index("platform.example.org/workload-group")) != null and ($k | index("platform.example.org/hosts-workloads")) == null then "\($f): workload-group without hosts-workloads"
+          else empty end')"
+  [ -z "$out" ] || { fail "$out"; plbad=1; }
+done
+[ $plbad = 0 ] && pass "ApplicationSets select on one capability label (+ the workload group for team apps) (D-023, D-079)"
+# Team app Applications are unique per cluster (D-079): the name carries the cluster's name.
+for f in "$W"/tenancy-*-control-plane.yaml "$W"/tenancy-*-control-plane-managed.yaml; do
+  n="$(yq -r 'select(.kind == "ApplicationSet" and (.metadata.name | test("^apps-"))) | .spec.template.metadata.name' "$f")"
+  case "$n" in *'{{ .name }}'*) ;; *) fail "$(basename "$f"): team app name '$n' has no cluster component (D-079)" ;; esac
+done; pass "team app Application names include the cluster (D-079)"
 # Component chart dependency versions equal tools/versions.env (D-039).
 declare -A want=([cert-manager]=$CERT_MANAGER_CHART_VERSION [kyverno]=$KYVERNO_CHART_VERSION [external-secrets]=$ESO_CHART_VERSION \
+  [external-secrets-push]=$ESO_CHART_VERSION \
   [reloader]=$RELOADER_CHART_VERSION [crossplane]=$CROSSPLANE_CHART_VERSION [cloudnative-pg]=$CNPG_CHART_VERSION)
 for c in "${!want[@]}"; do
   got="$(yq '.dependencies[0].version' "platform/components/$c/Chart.yaml")"
@@ -186,11 +214,38 @@ for key in $(yq -r '.notifications.templates // {} | keys | .[]' platform/bootst
 done
 [ $nbad = 0 ] && pass "every Argo CD notification template and trigger parses as YAML"
 
-hdr "tofu"
-if compgen -G "infra/envs/*/*.tf" >/dev/null || compgen -G "infra/modules/*/*.tf" >/dev/null; then
-  tofu fmt -recursive -check infra && pass "tofu fmt" || fail "tofu fmt"
-  tflint --recursive --chdir infra && pass "tflint" || fail "tflint"
-else printf 'INFO  no OpenTofu roots until Phase 4 (infra/envs/): tofu checks not applicable\n'; fi
+hdr "tofu (D-083)"
+# Static only: init without a backend downloads the pinned providers; nothing here talks to Azure.
+if compgen -G "infra/envs/*/*.tf" >/dev/null; then
+  tofu fmt -recursive -check infra >"$W/fmt" 2>&1 && pass "tofu fmt" || fail "tofu fmt: $(head -5 "$W/fmt" | tr '\n' ' ')"
+  for e in infra/envs/*/; do
+    e="${e%/}"
+    if ! tofu -chdir="$e" init -backend=false -input=false -lockfile=readonly >"$W/init" 2>&1; then
+      fail "tofu init $e (readonly lock): $(grep -iE 'error' "$W/init" | head -2)"; continue
+    fi
+    tofu -chdir="$e" validate -no-color >"$W/tv" 2>&1 && pass "tofu validate $e" || fail "tofu validate $e: $(grep -A3 -i error "$W/tv" | head -6 | tr '\n' ' ')"
+    # The committed lock covers every platform tools/install.sh supports, so no contributor's init rewrites it.
+    nh="$(grep -c '"h1:' "$e/.terraform.lock.hcl" || true)"
+    [ "${nh:-0}" -ge 10 ] && pass "$e/.terraform.lock.hcl has $nh h1 hashes (5 platforms × providers)" || fail "$e/.terraform.lock.hcl has ${nh:-0} h1 hashes; run: tofu -chdir=$e providers lock -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=windows_amd64"
+    # ADR-0007: every azurerm resource whose type supports tags sets tags (the provider schema decides what's taggable).
+    tofu -chdir="$e" providers schema -json 2>/dev/null \
+      | jq -r '.provider_schemas | to_entries[] | select(.key | endswith("/azurerm")) | .value.resource_schemas | to_entries[]
+               | select(.value.block.attributes.tags != null) | .key' | tr -d '\r' | sort -u >"$W/taggable"
+    [ -s "$W/taggable" ] || { fail "couldn't read the azurerm schema for the tag check ($e)"; continue; }
+  done
+  untagged="$(find infra -name '*.tf' -not -path '*/.terraform/*' -print0 | xargs -0 awk '
+      FNR == 1 { depth = 0; t = "" }
+      t == "" && match($0, /^resource "[a-z0-9_]+" "[^"]+"/) { split($0, a, "\""); t = a[2]; n = a[4]; depth = 0; has = 0; start = FNR }
+      t != "" {
+        line = $0; sub(/#.*/, "", line)
+        if (depth == 1 && line ~ /^[ \t]*tags[ \t]*=/) has = 1
+        o = gsub(/\{/, "{", line); c = gsub(/\}/, "}", line); depth += o - c
+        if (depth == 0 && FNR >= start && (o + c) > 0) { print t, n, FILENAME ":" start, has; t = "" }
+      }' | while read -r t n where has; do
+        grep -qx "$t" "$W/taggable" && [ "$has" = 0 ] && echo "$t.$n ($where)"; done || true)"
+  [ -z "$untagged" ] && pass "every taggable azurerm resource sets tags (ADR-0007)" || fail "taggable resources without tags (ADR-0007): $untagged"
+  tflint --recursive --chdir infra >"$W/tflint" 2>&1 && pass "tflint" || fail "tflint: $(grep -E 'Warning|Error' "$W/tflint" | head -3 | tr '\n' ' ')"
+else fail "no OpenTofu root under infra/envs/ (Phase 4 ships infra/envs/sandbox)"; fi
 
 printf '\nvalidate: %d failed, %d skipped\n' "$fails" "$skips"
 [ "$fails" -eq 0 ]

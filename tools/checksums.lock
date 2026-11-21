@@ -68,3 +68,8 @@ jq jq-1.8.2 darwin-arm64 jq-macos-arm64 2d75340ba57a4b4b4c8708a21c2dc8e958a48aaa
 yq v4.54.2 darwin-arm64 yq_darwin_arm64 34923a7ca09a32a4257702ced5f7f2e5e83b16968cce3866f5ff830e4ce1cdd4
 cilium v0.20.2 darwin-arm64 cilium-darwin-arm64.tar.gz 944c388f71b939e0befa405422c93d5fcbd574e4dd12c4bf01244858961d79de
 argocd v3.6.1 darwin-arm64 argocd-darwin-arm64 2e4a88082bfcb25dd56369ed9fe807d941ce1d916efb5a080eea6ac00347dfdf
+kubelogin v0.2.22 windows-amd64 kubelogin-win-amd64.zip 62839abfdaddc35dc460bfe1d40f2c569c168b7aa090e2c831776e84f95402b9
+kubelogin v0.2.22 linux-amd64 kubelogin-linux-amd64.zip 716cbcb1880bca8f0e976b8917d06fcfe04de2c1e737eaaabbb26e2782330119
+kubelogin v0.2.22 linux-arm64 kubelogin-linux-arm64.zip 306a31d80af443d06fb71e04d2feaf65a6c9cf2e7e806e87b895b77fe2093ea6
+kubelogin v0.2.22 darwin-amd64 kubelogin-darwin-amd64.zip 6f4a17811e5d5815bb005daae5dabce3d016c2caac84a097f1db4263344f113e
+kubelogin v0.2.22 darwin-arm64 kubelogin-darwin-arm64.zip b586d6409d578f2048053a6117ace47f0154f36c5beb6792c674679987a7efc8

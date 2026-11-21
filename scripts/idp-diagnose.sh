@@ -21,7 +21,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$APP" ] && [ -n "$ENV" ] && [ -n "$TEAM" ] || usage
-NS="$TEAM-$ENV"; TNS="tenant-$TEAM-$ENV"; ARGOAPP="$TEAM-$APP-$ENV"
+NS="$TEAM-$ENV"; TNS="tenant-$TEAM-$ENV"
+# The app's Argo CD Applications are found by their labels, not by name: there is one per workload cluster in the env's
+# group, named <team>-<app>-<env>-<cluster> (D-079).
+ARGOSEL="platform.example.org/team=$TEAM,platform.example.org/app=$APP,platform.example.org/env=$ENV"
 k() { kubectl "${AS[@]}" "$@"; }
 failed=""
 report() { # step status detail next
@@ -33,15 +36,22 @@ echo "STEP         STATUS  CURRENT STATE"
 
 # 1. Sync and admission (Argo CD). A denied manifest never reaches the cluster, so Argo CD is where it shows.
 if [ -n "${ARGOCD_TOKEN:-}" ]; then
-  app="$(curl -s -H "Authorization: Bearer $ARGOCD_TOKEN" "${ARGOCD_URL:-http://127.0.0.1:18080}/api/v1/applications/$ARGOAPP")"
-  phase="$(echo "$app" | jq -r '.status.operationState.phase // "unknown"')"
-  msg="$(echo "$app" | jq -r '.status.operationState.message // ""' | tr '\n' ' ' | cut -c1-400)"
-  case "$phase" in
-    Succeeded|Running) report Sync OK "Argo CD $ARGOAPP: $phase" "" ;;
-    Failed|Error) report Sync FAIL "Argo CD $ARGOAPP: $msg" \
-      "Fix the manifest or image in your deploy repo PR; the commit status and the message above say what and why." ;;
-    *) report Sync INFO "Argo CD $ARGOAPP: ${phase} (no access, or not synced yet)" "" ;;
-  esac
+  apps="$(curl -s -G -H "Authorization: Bearer $ARGOCD_TOKEN" --data-urlencode "selector=$ARGOSEL" \
+    "${ARGOCD_URL:-http://127.0.0.1:18080}/api/v1/applications")"
+  n="$(echo "$apps" | jq -r '(.items // []) | length' 2>/dev/null || echo 0)"
+  if [ "$n" = 0 ]; then
+    report Sync INFO "Argo CD: no application labeled $ARGOSEL is visible to your token (no access, or apps/$APP/$ENV.yaml isn't merged yet)" ""
+  fi
+  while IFS=$'\t' read -r name phase msg; do
+    [ -n "$name" ] || continue
+    case "$phase" in
+      Succeeded|Running) report Sync OK "Argo CD $name: $phase" "" ;;
+      Failed|Error) report Sync FAIL "Argo CD $name: $msg" \
+        "Fix the manifest or image in your deploy repo PR; the commit status and the message above say what and why." ;;
+      *) report Sync INFO "Argo CD $name: ${phase} (not synced yet)" "" ;;
+    esac
+  done < <(echo "$apps" | jq -r '(.items // [])[] | [.metadata.name, (.status.operationState.phase // "unknown"),
+             ((.status.operationState.message // "") | gsub("[\t\n]"; " ") | .[0:400])] | @tsv' 2>/dev/null)
 else
   echo "Sync         SKIP    set ARGOCD_TOKEN to include the Argo CD sync and admission result"
 fi

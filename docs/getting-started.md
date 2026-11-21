@@ -9,7 +9,7 @@ step here and the doctor disagree, the doctor is right, and this page has a bug.
 | Run the platform and the journeys on your laptop (kind) | `make doctor` (`local`) | Available (Phase 3) |
 | Run the docs gate (`scripts/verify-docs.sh`) | `make doctor PROFILE=docs` | Available |
 | Run the signed-image journeys (J1 allow path) against GHCR | `make doctor PROFILE=github` | Available (Phase 3) |
-| Run on AKS (`managed` or `byo`) | `make doctor PROFILE=cloud` | **Phase 4: not available yet** |
+| Run on AKS (`managed`; `byo` later) | `make doctor PROFILE=cloud` | **Phase 4 in progress:** preflight and OpenTofu ready; no live run yet |
 
 ## 1. Local (kind)
 
@@ -129,15 +129,28 @@ tamper-resistant public log" (F39). Check with `make doctor PROFILE=github`.
 
 ## 4. Cloud (AKS): Phase 4
 
-Not available yet. `make doctor PROFILE=cloud` fails on purpose until Phase 4 ships `infra/` and its checks. What the design
-already commits to:
+**In progress (D-087): nothing here has run against Azure yet.** Every AKS step goes through `infra/aks/aks.sh` (the
+`make aks-preflight` … `make aks-down` targets call it), which enforces a subscription confirmation, timeouts, a teardown owner and a teardown check (D-083).
+
+1. Fill in the environment: copy `infra/envs/sandbox/sandbox.tfvars.example` to `sandbox.auto.tfvars` (gitignored). The
+   subscription, region, environment id, teardown owner, expiry date and API server allowlist have no defaults.
+2. `az login`, then `make aks-preflight` (= `make doctor PROFILE=cloud`, read-only, D-084). It checks the subscription,
+   your roles, the resource providers, the region's AKS version, VM and vCPU quota and PostgreSQL SKU, a budget, leftovers
+   from an earlier run, and that the tfvars have no example values.
+3. `make aks-plan`, review the plan, then `GP_CONFIRM_SUBSCRIPTION=<subscription id> make aks-up` (billable).
+4. `GP_GITHUB_STATUS_TOKEN=<token> make aks-bootstrap`: Argo CD with Workload Identity on the control cluster, the cluster
+   Secrets, the root application and the EnvironmentConfig. The token is a fine-grained GitHub token with commit-status
+   write on the teams' deploy repos only (D-080); it's read from the environment and never written to disk.
+5. `make aks-down` removes everything and runs `make aks-verify-teardown`, which asks Azure (not the state file) whether
+   anything tagged with the environment id, any of the run's resource groups or any role assignment of its identities is left.
 
 | Requirement | Source in this repo |
 |---|---|
-| An Azure subscription, and an identity allowed to create resource groups and **role assignments** (the `AppIdentity` composition creates role assignments for each app, so app teams never do) | ADR-0008, D-022 |
+| An identity with Owner, or Contributor plus User Access Administrator (or Role Based Access Control Administrator), on the subscription: OpenTofu creates role assignments for the platform identities | D-083, D-084 |
 | AKS Standard for the control and workload clusters (`cilium_mode = byo` needs "Bring your own CNI", listed only for Standard) | ADR-0001, F23 |
-| OpenTofu at the pinned version (installed by `make tools`) | D-013, [Version pins](adr/README.md#version-pins) |
-| Optional, with its own cost: ACNS for the L7/FQDN profile on `managed`; Azure Front Door Premium for the edge WAF | D-021, D-007 |
+| OpenTofu, kubelogin and the other CLIs at the pinned versions (installed by `make tools`) | D-013, D-084, [Version pins](adr/README.md#version-pins) |
+| Your egress IP in `api_server_authorized_ip_ranges`: the API servers aren't open to the internet | D-083 |
+| Optional, with its own cost: ACNS for the L7/FQDN profile on `managed` (`enable_acns`); Azure Front Door Premium for the edge WAF (`enable_edge_waf`, refused until its module exists) | D-021, D-007 |
 
-Costs, quotas, exact Azure roles and the Azure CLI version are verified from Microsoft's documentation in Phase 4 and added
-here. They are not estimated now.
+Costs are read from the Azure pricing pages, and the subscription's budget is checked before the first run; they are not
+estimated here.

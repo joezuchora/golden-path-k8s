@@ -137,6 +137,9 @@ install_one() {
     argocd) v=$ARGOCD_CLI_VERSION; asset="argocd-$OS-$ARCH$EXE"
       url="https://github.com/argoproj/argo-cd/releases/download/$v/$asset"
       sumurl="https://github.com/argoproj/argo-cd/releases/download/$v/cli_checksums.txt" ;;
+    # Entra ID login for AKS clusters with local accounts disabled (D-084). Windows assets are named win-, not windows-.
+    kubelogin) v=$KUBELOGIN_VERSION; local kplat="$OS-$ARCH"; [ "$OS" = windows ] && kplat="win-$ARCH"; asset="kubelogin-$kplat.zip"
+      url="https://github.com/Azure/kubelogin/releases/download/$v/$asset"; sumurl="$url.sha256"; member="kubelogin$EXE" ;;
     *) echo "unknown tool: $tool"; exit 2 ;;
   esac
 
@@ -173,5 +176,5 @@ install_one() {
 }
 
 TOOLS=("$@")
-[ ${#TOOLS[@]} -gt 0 ] || TOOLS=(kind kubectl helm kyverno chainsaw crossplane tofu tflint kubeconform cosign jq yq cilium argocd)
+[ ${#TOOLS[@]} -gt 0 ] || TOOLS=(kind kubectl helm kyverno chainsaw crossplane tofu tflint kubeconform cosign jq yq cilium argocd kubelogin)
 for t in "${TOOLS[@]}"; do member=""; install_one "$t"; done

@@ -19,7 +19,7 @@ E2E_DIRS := $(filter-out lib,$(sort $(notdir $(patsubst %/,%,$(wildcard tests/e2
 
 PROFILE ?= local
 
-.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate test-policies e2e e2e-all verify-docs
+.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate test-policies e2e e2e-all verify-docs \n	aks-preflight aks-plan aks-up aks-bootstrap aks-down aks-verify-teardown
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -66,6 +66,26 @@ e2e-all: tools ## Run every Chainsaw suite on kind
 	@$(EVIDENCE)
 	@mkdir -p .e2e-reports
 	chainsaw test --kube-context $(KIND_CONTEXT) --test-dir tests/e2e --config tests/e2e/chainsaw-config.yaml --no-color
+
+# AKS (D-083, D-084): every target goes through infra/aks/aks.sh, which enforces the subscription confirmation, the
+# timeouts, the teardown owner and the teardown check. GP_ENV selects infra/envs/<env> (default sandbox).
+aks-preflight: tools ## Cloud preflight, read-only (= make doctor PROFILE=cloud)
+	bash infra/aks/aks.sh preflight
+
+aks-plan: tools ## tofu plan for infra/envs/<GP_ENV> (after the preflight)
+	bash infra/aks/aks.sh plan
+
+aks-up: ## Apply the reviewed plan (needs GP_CONFIRM_SUBSCRIPTION=<subscription id>; billable)
+	bash infra/aks/aks.sh up
+
+aks-bootstrap: ## Argo CD, cluster Secrets, root app and EnvironmentConfig on the AKS clusters
+	bash infra/aks/aks.sh bootstrap
+
+aks-down: ## Drain XRs, tofu destroy, verify nothing is left
+	bash infra/aks/aks.sh down
+
+aks-verify-teardown: ## Assert from Azure that nothing from the environment remains
+	bash infra/aks/aks.sh verify-teardown
 
 verify-docs: ## Documentation gate (D-035)
 	bash scripts/verify-docs.sh

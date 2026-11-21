@@ -40,6 +40,8 @@ spec:
             - values.yaml
             - 'values-{{ index .metadata.annotations "platform.example.org/profile" }}.yaml'
           ignoreMissingValueFiles: true
+          # Per-environment platform values that aren't in Git, under global.* (AKS: Azure IDs for Crossplane, D-081).
+          values: '{{ index .metadata.annotations "platform.example.org/platform-values" | default "" }}'
           parameters:
             - name: global.platform.profile
               value: '{{ index .metadata.annotations "platform.example.org/profile" }}'

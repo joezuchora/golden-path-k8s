@@ -40,11 +40,17 @@ spec:
             - values.yaml
             - 'values-{{ index .metadata.annotations "platform.example.org/profile" }}.yaml'
           ignoreMissingValueFiles: true
+          # Per-environment platform values that aren't in Git, under global.* (AKS: Azure IDs for Crossplane, D-081).
+          values: '{{ index .metadata.annotations "platform.example.org/platform-values" | default "" }}'
           parameters:
             - name: global.platform.profile
               value: '{{ index .metadata.annotations "platform.example.org/profile" }}'
             - name: global.platform.gitBase
               value: '{{ index .metadata.annotations "platform.example.org/git-base" }}'
+            # true only on a cluster that hosts the control plane without workloads (split AKS). A component that the
+            # workloads capability also installs (external-secrets-push, D-078) renders nothing when this is false.
+            - name: global.platform.controlPlaneOnly
+              value: '{{ ne (index .metadata.labels "platform.example.org/hosts-workloads" | default "") "true" }}'
       destination:
         server: '{{ .server }}'
         namespace: '{{ .namespace }}'

@@ -25,7 +25,7 @@ gets an HTTPS URL"). **Exit criterion 3.** **Suite:** `tests/e2e/j1-ship/`.
 | Admit | Kyverno: signer + caller + verified base digest (D-026), resources, registry, derived labels (D-063) | Pod template carries `cost-center` from the team file; the running image is the signed digest |
 | Roll out | Deployment, Pod Security `restricted` | Application `Healthy` |
 | Route | HTTPRoute on the platform Gateway, cert from cert-manager (kind: platform CA, D-051) | `https://hello-team-a-dev.apps.kind.test/` returns 200 from an in-cluster client; HTTP returns 301; the response header modifier is present |
-| Report | Argo CD notifications → Gitea commit status (D-043) | The merge commit has a `success` status from `platform/argocd/team-a-hello-dev` |
+| Report | Argo CD notifications → Gitea commit status (D-043) | The merge commit has a `success` status from `platform/argocd/team-a-hello-dev-in-cluster` |
 
 ## Where kind deviates
 
