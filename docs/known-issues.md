@@ -16,6 +16,7 @@ shape, with a D- or F-entry.
 | A script edited on Windows fails with odd parse errors | CRLF line endings | `.gitattributes` forces LF on scripts, YAML and the Makefile | D-048 |
 | kind fails on a 16 GB laptop | Docker Desktop and WSL default to 50% of host memory | `make doctor` checks for 8 GiB, the measured peak (5.97 GiB) plus headroom | F38, F49, D-074 |
 | Gateway LoadBalancer IPs never answer | The kind network isn't the /16 the pool assumes, often because of a VPN subnet clash | `bootstrap.sh` derives the pool from the kind network's real subnet | F37, D-068 |
+| A commit lands on the wrong branch, or a pushed branch is missing your commit | Another agent switched branches in the shared primary checkout while you were working | `make hooks`: the primary checkout stays on `main` (a branch switch is reverted, a commit off `main` is refused); each task runs in its own `git worktree` | D-089 |
 
 ## GitOps (Argo CD, Gitea)
 

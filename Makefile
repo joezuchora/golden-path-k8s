@@ -19,10 +19,14 @@ E2E_DIRS := $(filter-out lib,$(sort $(notdir $(patsubst %/,%,$(wildcard tests/e2
 
 PROFILE ?= local
 
-.PHONY: help doctor tools preflight kind-up kind-sync kind-down validate test-policies e2e e2e-all verify-docs
+.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate test-policies e2e e2e-all verify-docs
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
+
+hooks: ## Enable the repo's Git hooks (worktree rule, D-089): the primary checkout stays on main
+	git config core.hooksPath .githooks
+	@echo "Git hooks enabled (.githooks). Work on branches in worktrees: git worktree add ../golden-path-k8s-<task> -b <branch> origin/main"
 
 doctor: ## Check prerequisites: make doctor [PROFILE=local|docs|github|cloud|all]
 	bash scripts/doctor.sh $(PROFILE)

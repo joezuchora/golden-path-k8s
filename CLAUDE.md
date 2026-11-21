@@ -54,6 +54,13 @@ they never define it. Cite each source only for what it actually says.
 - Change the repo coordinates (`<org>/golden-path-k8s`) only via `scripts/render-repo-coords.sh`. They
   feed cosign identities, Argo CD repoURLs, and Backstage template targets.
 
+## Working in parallel (D-089)
+- The primary checkout (the clone's main working tree) stays on `main`. Start every task in its own worktree:
+  `git worktree add ../golden-path-k8s-<task> -b <branch> origin/main`. Never `git checkout`/`git switch` a branch in
+  the primary checkout; other agents share it. `make hooks` enables the hooks that enforce this.
+- Shared local resources (the kind cluster `golden-path`, its Gitea) belong to one session at a time; coordinate before
+  `make kind-down`/`kind-up`.
+
 ## Commands
 <!-- Planned targets; none exist yet. Replace with verified commands as each phase lands. -->
 - `make doctor [PROFILE=local|docs|github|cloud|all]`: prerequisite checks (D-056); setup guide in `docs/getting-started.md`

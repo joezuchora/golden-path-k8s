@@ -81,6 +81,7 @@ The doctor warns when they're lower.
 ### Run it
 
 ```bash
+make hooks           # once per clone: keeps the primary checkout on main; work on branches in worktrees (D-089)
 make doctor          # every check above
 make kind-up         # preflight → kind cluster → Gateway API CRDs → Cilium → Gitea → Argo CD → GitOps
 make validate        # static checks
