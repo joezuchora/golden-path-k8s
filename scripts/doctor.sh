@@ -47,6 +47,10 @@ check_host() {
   for t in git curl tar unzip awk sed grep find mktemp sort; do has "$t" && pass "$t" || fail "$t not found"; done
   if has sha256sum || has shasum; then pass "sha256sum/shasum"; else fail "sha256sum or shasum not found"; fi
 
+  # Worktree rule (D-089): several agents share one clone, so the primary checkout stays on main.
+  if [ "$(git -C "$ROOT" config --get core.hooksPath 2>/dev/null)" = .githooks ]; then pass "Git hooks enabled (worktree rule, D-089)"
+  else warn "Git hooks not enabled: run 'make hooks' (keeps the primary checkout on main; branches go in worktrees, D-089)"; fi
+
   if [ "$os" = windows-gitbash ] || [ "$os" = wsl ]; then
     if git config --get core.autocrlf >/dev/null 2>&1; then info "git core.autocrlf=$(git config --get core.autocrlf); .gitattributes forces LF for scripts"; fi
   fi

@@ -12,7 +12,7 @@
 #   4 mermaid     every ```mermaid block renders with a pinned mermaid-cli. If the CLI can't run, the result is
 #                 UNVERIFIED, which fails the gate.
 #   6 references  every repo path and `make` target named in a current doc exists (history docs are excluded).
-#   5 log         D-IDs are unique and sequential; every "Revisited → D-x" target exists and the revisited decision
+#   5 log         D-IDs are unique and ascending, with gaps only inside a "Reserved D-IDs" line; every "Revisited → D-x" target exists and the revisited decision
 #                 is in design-evolution.md; the ADR files and the ADR index match one to one.
 #
 # Usage: bash scripts/verify-docs.sh        (Git Bash, WSL, Linux, macOS; needs python3 or python, plus curl and npx)
@@ -138,7 +138,8 @@ for p in md_files:
     for f in sorted(set(re.findall(r"(?<![A-Za-z0-9-])F\d+\b", t))):
         if f not in f_ids:
             errs.append(f"{p}: {f} has no F-table row")
-    for d in sorted(set(re.findall(r"\bD-\d{3}\b", t))):
+    cited = re.sub(r"^Reserved D-IDs.*$", "", t, flags=re.M)  # a reservation names IDs that have no row yet (check 5)
+    for d in sorted(set(re.findall(r"\bD-\d{3}\b", cited))):
         if d not in d_ids:
             errs.append(f"{p}: {d} has no Decision Log row")
     for a in sorted(set(re.findall(r"\bADR-(\d{4})\b", t))):
@@ -207,8 +208,19 @@ errs = []
 nums = [int(d[2:]) for d in d_rows]
 if len(nums) != len(set(nums)):
     errs.append("duplicate D-IDs")
-if nums != list(range(1, len(nums) + 1)):
-    errs.append("D-IDs are not sequential from D-001")
+# Parallel work claims ID ranges up front ("Reserved D-IDs: D-078–D-088 (Phase 4)") so two branches never take the same
+# number. A gap is allowed only inside a declared reservation, and IDs must still be ascending.
+reserved = set()
+for line in re.findall(r"^Reserved D-IDs.*$", log, re.M):
+    for lo, hi in re.findall(r"D-(\d{3})\s*[–-]\s*D-(\d{3})", line):
+        reserved |= set(range(int(lo), int(hi) + 1))
+    for one in re.findall(r"D-(\d{3})(?!\s*[–-])", line):
+        reserved.add(int(one))
+if nums != sorted(nums):
+    errs.append("D-IDs are not in ascending order")
+missing = sorted(set(range(1, max(nums) + 1)) - set(nums) - reserved) if nums else []
+if missing:
+    errs.append("D-IDs have gaps that no reservation covers: " + ", ".join(f"D-{m:03d}" for m in missing))
 evo = read("docs/design-evolution.md")
 for row in re.findall(r"^\| (D-\d{3}) \|(.*)$", log, re.M):
     for tgt in re.findall(r"Revisited → (D-\d{3})", row[1]):

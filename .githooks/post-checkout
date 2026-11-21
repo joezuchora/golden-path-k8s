@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Worktree rule (D-089): Git can't refuse a checkout, so this hook runs right after one. If the primary checkout was
+# switched to a branch other than main, it switches straight back and says why. It leaves alone file checkouts,
+# detached HEADs (rebases, bisects), linked worktrees, and in-progress merges or rebases.
+# Enabled with `make hooks`. Override once with ALLOW_PRIMARY_CHECKOUT=1.
+set -uo pipefail
+[ "${3:-0}" = 1 ] || exit 0                        # 1 = a branch checkout; 0 = file checkout
+git_dir="$(cd "$(git rev-parse --git-dir)" && pwd -P)"
+common_dir="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)"
+[ "$git_dir" = "$common_dir" ] || exit 0          # a linked worktree: allowed
+[ -d "$git_dir/rebase-merge" ] || [ -d "$git_dir/rebase-apply" ] || [ -f "$git_dir/MERGE_HEAD" ] && exit 0
+branch="$(git symbolic-ref --short -q HEAD || true)"
+[ -z "$branch" ] || [ "$branch" = main ] && exit 0
+[ "${ALLOW_PRIMARY_CHECKOUT:-}" = 1 ] && exit 0
+echo "The primary checkout stays on main (D-089); switching back from '$branch'." >&2
+echo "Work in a worktree: git worktree add ../golden-path-k8s-<task> -b $branch origin/main" >&2
+git checkout -q main

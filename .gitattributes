@@ -6,3 +6,4 @@ Makefile text eol=lf
 *.tpl text eol=lf
 *.env text eol=lf
 tools/checksums.lock text eol=lf
+.githooks/* text eol=lf

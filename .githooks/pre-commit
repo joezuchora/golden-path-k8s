@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Worktree rule (D-089): the primary checkout stays on main; every task runs in its own worktree. Several agents share
+# this clone, and a branch switch in the primary checkout moves everyone's work underneath them.
+# Enabled with `make hooks` (git config core.hooksPath .githooks). Override once with ALLOW_PRIMARY_COMMIT=1.
+set -euo pipefail
+git_dir="$(cd "$(git rev-parse --git-dir)" && pwd -P)"
+common_dir="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)"
+[ "$git_dir" = "$common_dir" ] || exit 0          # a linked worktree: allowed
+branch="$(git symbolic-ref --short -q HEAD || true)"
+[ "$branch" = main ] && exit 0
+[ "${ALLOW_PRIMARY_COMMIT:-}" = 1 ] && exit 0
+cat >&2 <<EOF
+Commit blocked: the primary checkout is on '${branch:-a detached HEAD}', not main (D-089).
+Work in a worktree instead:
+  git worktree add ../golden-path-k8s-<task> -b <branch> origin/main
+To override once: ALLOW_PRIMARY_COMMIT=1 git commit ...
+EOF
+exit 1
