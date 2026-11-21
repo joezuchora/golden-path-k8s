@@ -39,7 +39,9 @@ published checksums (F34), so it is installed from the bundle tarball, whose che
 4. **Prove it:** the PR's `validate`, `test-policies` and kind e2e jobs must pass. A minor or major bump of a contract-surface
    component (Kyverno policy APIs, Gateway API, XRD API versions) also follows ADR-0010.
 
-From Phase 6, Renovate opens these PRs. The steps and gates stay the same.
+Renovate opens PRs today only for Chainguard image digests outside admission and for GitHub Actions pins (D-091). The pins in
+`tools/versions.env` and the admission-bound runtime base (`cgr.dev/chainguard/static`) stay manual until Phase 6, and follow the
+steps above.
 
 ## Version skew that is allowed
 

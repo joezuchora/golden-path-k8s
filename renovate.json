@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Scope (D-091): Chainguard image digests outside admission, and GitHub Actions pins. Everything else stays manual until Phase 6.",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["github-actions", "custom.regex"],
+  "ignorePaths": ["platform/policies/**"],
+  "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 4,
+  "dependencyDashboard": {"enabled": true},
+  "customManagers": [
+    {
+      "description": "Chainguard images pinned as <image>:latest[-dev]@sha256:<digest> in Dockerfile ARGs, chart values and test scripts",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^apps/[^/]+/Dockerfile$/",
+        "/^platform/components/[^/]+/values[^/]*\\.yaml$/",
+        "/^tests/e2e/lib/[^/]+\\.sh$/"
+      ],
+      "matchStrings": [
+        "(?<depName>cgr\\.dev/chainguard/[a-z0-9-]+):(?<currentValue>latest(?:-dev)?)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Chart values that split the image into repository and tag (Argo CD's Redis, PR #8)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^platform/bootstrap/[^/]+\\.yaml$/"],
+      "matchStrings": [
+        "repository: (?<depName>cgr\\.dev/chainguard/[a-z0-9-]+), tag: \"(?<currentValue>latest(?:-dev)?)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "One weekly PR for all Chainguard digest bumps; CI (validate, policy tests, the kind matrix) gates it (D-019)",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["digest"],
+      "groupName": "Chainguard image digests"
+    },
+    {
+      "description": "The runtime base is bound to admission's verified-bases.yaml and the CI-built fixtures; it is bumped by hand (D-091)",
+      "matchPackageNames": ["cgr.dev/chainguard/static"],
+      "enabled": false
+    },
+    {
+      "description": "Actions: stable releases at least 14 days old (D-039); non-major bumps grouped",
+      "matchManagers": ["github-actions"],
+      "minimumReleaseAge": "14 days"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "GitHub Actions (non-major)"
+    }
+  ]
+}
