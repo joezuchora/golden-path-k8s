@@ -2,12 +2,13 @@
 
 - **Status:** Proposed
 - **Date:** 2026-11-20
-- **Contract promise:** P2 An identity (+ network path, this repo's extension)
-- **CNCF capability domain(s):** Identity and secret management services; Security services
-- **Related decisions:** D-022, D-010, D-028
+- **Contract promise:** P2 An identity
+- **CNCF capability domain(s):** Identity and secret services; Security services
+- **Related decisions:** D-022, D-010, D-028, D-029
 
 ## Context
-Promise 2 is, in the blog's words, "An identity": workload identity removes stored secrets for Azure services.
+Promise 2 is, in the blog's words, "An identity": "Your app reaches Azure services without a stored secret", delivered
+on AKS by workload identity (F16).
 ADR-0002 uses Workload Identity only for ESO's secret sync. An external review (2026-11-20) pointed out that the
 plan never said how the **app itself** authenticates to an Azure dependency, or who owns that binding. Without
 this, "secretless" is a claim about the platform's plumbing, not a promise to app teams.

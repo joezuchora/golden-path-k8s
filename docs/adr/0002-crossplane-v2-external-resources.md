@@ -3,14 +3,15 @@
 - **Status:** Proposed
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run
-- **CNCF capability domain(s):** Infrastructure services; Data services; APIs (and CLIs)
+- **CNCF capability domain(s):** Infrastructure services; Data services; APIs for automatically provisioning capabilities
 - **Related decisions:** D-003 (Revisited), D-024, D-002
 
 ## Context
 App teams need databases, caches and networks without filing tickets and without holding cloud credentials.
 Crossplane v2.4 (F4) makes XRs and MRs namespaced, removes claims for v2 XRs, removes XR connection details and
 native patch-and-transform (P&T), and notes that namespaced Azure MRs are "still being updated". The AKS blog
-lists Crossplane and kro as "Not built in" and says kro is "still pre-1.0"; ASO is the Azure-side building block.
+marks "You can request an environment" as "Not built in" on AKS and lists "Crossplane with OpenTofu, or kro with
+Azure Service Operator (ASO)" as the bring-your-own path (F16). It says kro is "still pre-1.0" (F17).
 
 ## Decision drivers
 - A declarative, self-service API that is continuously reconciled (drift correction).

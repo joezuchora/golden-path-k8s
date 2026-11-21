@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run · P3 A way to see what it's doing
-- **CNCF capability domain(s):** Infrastructure services; Observability
+- **CNCF capability domain(s):** Infrastructure services; Application observability
 - **Related decisions:** D-010, D-017, D-028
 
 ## Context

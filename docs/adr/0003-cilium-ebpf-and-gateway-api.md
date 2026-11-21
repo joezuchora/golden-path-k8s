@@ -2,15 +2,19 @@
 
 - **Status:** Proposed
 - **Date:** 2026-11-20
-- **Contract promise:** P2 An identity (+ network path, this repo's extension)
-- **CNCF capability domain(s):** Security services; Observability; Infrastructure services
-- **Related decisions:** D-004 (Revisited), D-005, D-006, D-018, D-021, D-027
+- **Contract promise:** P1 A place to run (default-deny network-policy boundary) · P2 An identity (HTTPS URL via Gateway API)
+- **CNCF capability domain(s):** Security services; Application observability; Infrastructure services
+- **Related decisions:** D-004 (Revisited), D-005, D-006, D-018, D-021, D-027, D-029
 
 ## Context
 The original requirement was Azure CNI Powered by Cilium with Cilium's built-in Gateway API (D-004).
 Verification (F3) showed that only label exclusion can be changed in the AKS-managed Cilium ConfigMap, so
 Cilium's Gateway API can't be enabled there. L7 and FQDN policy require Advanced Container Networking Services
-(ACNS); kube-proxy is not used. The AKS blog does not mention Cilium (F1). Sidecar meshes add CPU, memory and
+(ACNS); kube-proxy is not used. The AKS blog does not mention Cilium (F1). It places "Your app gets an HTTPS URL"
+(application routing with the Gateway API, or your own Gateway controller with cert-manager) under "An identity", and
+network policy under "A place to run" ("Your app gets its own boundary") (F16). This ADR follows that split (D-029):
+the gateway serves P2, and the CNI and `CiliumNetworkPolicy` serve P1. Cilium as the dataplane and the L7/FQDN profile
+are this repo's extensions. Sidecar meshes add CPU, memory and
 upgrade coupling to every pod. Ingress-NGINX is retired (F10): the repo "was archived by the owner on Mar 24, 2026",
 gets no security fixes, and tells new users to "identify a Gateway API implementation" (Kubernetes blog,
 "Ingress NGINX Retirement: What You Need to Know", 2025-11-11).

@@ -3,15 +3,16 @@
 - **Status:** Proposed
 - **Date:** 2026-11-20
 - **Contract promise:** P3 A way to see what it's doing
-- **CNCF capability domain(s):** Observability; Web portals; Identity and secret management services
+- **CNCF capability domain(s):** Application observability; Web portals for provisioning and observing capabilities; Identity and secret services
 - **Related decisions:** D-009 (Revisited), D-025, D-010
 
 ## Context
 A useful test of an abstraction is what happens when something fails. Developers must be able to see what
 failed, at which step, which dependency is blocked, the current rollout or reconciliation state, and the next
 action, without `cluster-admin` and without a ticket. The AKS blog's equivalents are "A rejected change tells
-you how to fix it" (Deployment Safeguards), AKS desktop working "with the developer's own identity and RBAC",
-and fixes made through Git. Managed Prometheus access is per workspace or cluster, not per namespace (F8). The
+you how to fix it" (Deployment Safeguards on AKS, Kyverno as bring-your-own; F16), and AKS desktop, whose AI
+assistant "works with the developer's own identity and RBAC, nothing more", with access "scoped to its namespace" (F17).
+Fixes are made through Git. Managed Prometheus access is per workspace or cluster, not per namespace (F8). The
 Hubble UI is not multi-tenant.
 
 ## Decision drivers

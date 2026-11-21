@@ -3,13 +3,13 @@
 - **Status:** Proposed
 - **Date:** 2026-11-20
 - **Contract promise:** P4 A safe way to ship
-- **CNCF capability domain(s):** Security services; Artifact storage; Automation for building and testing
-- **Related decisions:** D-008 (Revisited), D-026, D-014, D-019
+- **CNCF capability domain(s):** Security services; Artifact storage; Automation for building and testing products
+- **Related decisions:** D-008 (Revisited), D-026, D-014, D-019, D-031
 
 ## Context
 Vulnerability scanning finds known CVEs but proves nothing about where an image came from or what it was
 built from. The AKS blog notes that ACR and Defender "don't sign application images for you" and names
-Ratify/Notation; it does not mention Chainguard or Cosign (F1). The Chainguard free tier offers `:latest` tags
+Ratify/Notation (F17); it does not mention Chainguard or Cosign (F1). The Chainguard free tier offers `:latest` tags
 only, and public images are signed keyless by Chainguard's GitHub release workflow (F5). Every base this repo needs
 (`go`, `static`, `python`, `dotnet-sdk`, `aspnet-runtime`, `node`, and others) can be pulled anonymously at `:latest` and
 `:latest-dev`; versioned tags cannot (F6, verified 2026-11-20).
@@ -27,6 +27,8 @@ only, and public images are signed keyless by Chainguard's GitHub release workfl
 | **AKS-native:** Ratify + Notation + Deployment Safeguards | The blog's path; Azure-integrated | Notation ecosystem is narrower than Sigstore's; Gatekeeper-based |
 | **Kyverno `verifyImages` + Cosign keyless** | Sigstore ecosystem; checks both signatures and attestations; same engine as the other policies | Fulcio and Rekor become dependencies |
 | sigstore policy-controller | Purpose-built | A second admission engine |
+| Registry: **GitHub Container Registry (GHCR)** | Free for a public repo; the same registry serves kind, CI and the real-registry admission tests; native GitHub Actions auth | Not Azure-integrated; no Defender scanning in the registry |
+| Registry, **AKS-native:** ACR + Defender for Containers | The blog's "On AKS" path (F16); managed scanning; private networking | Cost per registry; kind and CI need Azure credentials to push or pull, which works against kind-first (D-016) |
 
 ## Decision
 - One reusable workflow (`reusable-build-sign.yaml`) builds every app image:
@@ -54,6 +56,9 @@ only, and public images are signed keyless by Chainguard's GitHub release workfl
   running pods are unaffected. Kyverno caches only *successful* verifications (default TTL 60m, max 1000 entries), so
   recently verified digests keep deploying through short outages. The outage runbook documents a time-boxed,
   audited `PolicyException` as break-glass.
+- **Registry (D-031):** the reusable workflow pushes app images, signatures and attestations to GHCR. ACR with Defender
+  is the documented AKS-native alternative. Switching is a change to the workflow's registry input, plus the admission
+  policy's image pattern, and needs no app change.
 - Trivy Operator rescans running images continuously. Renovate bumps base-image digests.
 - Bases are referenced as `:latest@sha256:<digest>`. Builds use `-dev` variants and runtimes use the minimal variants.
   Because `:latest` moves across language major versions (for example Python 3.x → 3.y), each Renovate digest PR must
