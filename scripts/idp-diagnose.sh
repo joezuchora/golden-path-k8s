@@ -113,11 +113,15 @@ fi
 get rt -n "$NS" httproute "$APP"; rc=$?
 if [ $rc = 0 ]; then
   host="$(echo "$rt" | jq -r '.spec.hostnames[0] // "(no hostname)"')"
-  acc="$(echo "$rt" | jq -r '[.status.parents[]?.conditions[]? | select(.type=="Accepted")][0].status // "none"')"
-  res="$(echo "$rt" | jq -r '[.status.parents[]?.conditions[]? | select(.type=="ResolvedRefs")][0].status // "none"')"
-  bad="$(echo "$rt" | jq -r '[.status.parents[]?.conditions[]? | select(.status!="True") | "\(.type)=\(.status) \(.reason): \(.message)"] | join("; ")' | cut -c1-300)"
+  # Only the platform Gateway parent counts, and only conditions observed at the route's current generation: after an
+  # edit, conditions from the previous generation say nothing about the new spec.
+  cur="$(echo "$rt" | jq -c '.metadata.generation as $g | [.status.parents[]? | select(.parentRef.name == "platform" and (.parentRef.namespace // "") == "platform-gateway")
+         | .conditions[]? | select(.observedGeneration == $g)]')"
+  acc="$(echo "$cur" | jq -r '[.[] | select(.type=="Accepted")][0].status // "none"')"
+  res="$(echo "$cur" | jq -r '[.[] | select(.type=="ResolvedRefs")][0].status // "none"')"
+  bad="$(echo "$cur" | jq -r '[.[] | select(.status!="True") | "\(.type)=\(.status) \(.reason): \(.message)"] | join("; ")' | cut -c1-300)"
   if [ "$acc" = True ] && [ "$res" = True ]; then report Route OK "https://$host accepted by the platform gateway, backends resolved" ""
-  elif [ "$acc" = none ]; then report Route UNKNOWN "https://$host: the gateway hasn't reported a status yet" "Wait a minute; if it stays without status, page the platform on-call (gateway controller)."
+  elif [ "$acc" = none ] || [ "$res" = none ]; then report Route UNKNOWN "https://$host: the platform gateway hasn't reported on the route's current generation yet" "Wait a minute; if it stays without status, page the platform on-call (gateway controller)."
   else report Route FAIL "https://$host: ${bad:-Accepted=$acc ResolvedRefs=$res}" "Check route values (host, path) in apps/$APP/$ENV.yaml; if they're valid, page the platform on-call."; fi
 elif [ $rc = 2 ]; then
   report Route UNKNOWN "couldn't read HTTPRoute $NS/$APP: $GET_ERR" "Check your access to $NS; if it's correct, page the platform on-call."

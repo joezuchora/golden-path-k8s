@@ -1,0 +1,4 @@
+# Chainguard python, pinned by digest (platform component, D-045); standard library only.
+image: cgr.dev/chainguard/python:latest@sha256:f6e5c2e056393d48fa8afa1ea58a1394db4cd5de1a8f0f48105c8e88fcd4f9d3
+gitApi: ""            # the Git host API, per profile
+docsUrl: https://github.com/joezuchora/golden-path-k8s/blob/main/docs/journeys/j2-rejected-change.md
