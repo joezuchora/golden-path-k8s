@@ -1,0 +1,72 @@
+# Journey O1: onboard a team (docs/journeys/o1-onboard-team.md). Exit criterion 7: cross-tenant deny for the Kubernetes
+# API and Argo CD (D-025).
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: o1-onboard-team
+spec:
+  timeouts: {assert: 5m, exec: 5m}
+  steps:
+    - name: a team definition PR is merged in Git
+      try:
+        - script: {content: bash ./onboard.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./offboard.sh}
+    - name: the platform renders the team boundary from the definition
+      try:
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: team-c-dev
+                labels:
+                  platform.example.org/team: team-c
+                  platform.example.org/owner: team-c-oncall
+                  platform.example.org/cost-center: cc-1003
+                  platform.example.org/env: dev
+                  pod-security.kubernetes.io/enforce: restricted
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: tenant-team-c-dev
+                labels:
+                  platform.example.org/team: team-c
+                  platform.example.org/tenant-scope: control-plane
+        - assert:
+            resource:
+              apiVersion: rbac.authorization.k8s.io/v1
+              kind: RoleBinding
+              metadata: {name: team-c-developers-view, namespace: team-c-dev}
+              subjects: [{kind: Group, name: team-c}]
+              roleRef: {kind: ClusterRole, name: view}
+        - assert:
+            resource:
+              apiVersion: cilium.io/v2
+              kind: CiliumNetworkPolicy
+              metadata: {name: baseline, namespace: team-c-dev}
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: ResourceQuota
+              metadata: {name: team-quota, namespace: team-c-dev}
+        - assert:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: AppProject
+              metadata: {name: team-c, namespace: argocd}
+              spec:
+                clusterResourceWhitelist: []
+        - assert:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: ApplicationSet
+              metadata: {name: apps-team-c, namespace: argocd}
+    - name: cross-tenant deny on the Kubernetes API
+      try:
+        - script: {content: bash ./k8s-deny.sh}
+    - name: cross-tenant deny on Argo CD
+      try:
+        - script: {content: bash ./argocd-deny.sh}

@@ -1,0 +1,150 @@
+# PostgreSQLInstance, azure backend (AKS, Phase 4): Azure Database for PostgreSQL Flexible Server with Entra authentication
+# only (ADR-0008: no stored password), in a resource group owned by this XR, using namespaced managed resources only
+# (D-024). Region and tenant come from the platform's EnvironmentConfig "azure-platform" (written by OpenTofu in Phase 4).
+# The composed Secret carries host, port, dbname and sslmode; a composed PushSecret delivers it to the team's Key Vault
+# store (ADR-0002). Azure tags are derived from the tenant Namespace's labels (ADR-0007).
+# Phase 3 proves this composition statically (crossplane resource validate + a render golden file); Phase 4 runs it.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: postgresqlinstance-azure
+  labels: {provider: azure}
+spec:
+  compositeTypeRef: {apiVersion: platform.example.org/v1, kind: PostgreSQLInstance}
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef: {name: function-go-templating}
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $xr := .observed.composite.resource }}
+            {{- $name := $xr.metadata.name }}
+            {{- $ns := $xr.metadata.namespace }}
+            {{- $er := default (dict) .extraResources }}
+            {{- $nsl := dict }}
+            {{- range (index (index $er "namespace" | default (dict)) "items" | default (list)) }}{{ $nsl = .resource.metadata.labels }}{{ end }}
+            {{- $env := dict }}
+            {{- range (index (index $er "environment" | default (dict)) "items" | default (list)) }}{{ $env = .resource.data }}{{ end }}
+            {{- $tags := dict }}
+            {{- range $k := list "team" "owner" "cost-center" "env" "data-classification" "contract-version" }}
+            {{- $key := printf "platform.example.org/%s" $k }}
+            {{- if hasKey $nsl $key }}{{ $_ := set $tags $k (index $nsl $key) }}{{ end }}
+            {{- end }}
+            {{- $_ := set $tags "dependency" $name }}
+            {{- $labels := dict "platform.example.org/dependency" $name }}
+            {{- $rg := printf "rg-%s-%s" $ns $name | trunc 90 }}
+            {{- $server := printf "%s-%s" $ns $name | trunc 63 | trimSuffix "-" }}
+            {{- $pc := dict "kind" "ClusterProviderConfig" "name" "default" }}
+            ---
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              namespace:
+                apiVersion: v1
+                kind: Namespace
+                matchName: {{ $ns | quote }}
+              environment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: azure-platform
+            {{- if and $nsl $env }}
+            ---
+            apiVersion: azure.m.upbound.io/v1beta1
+            kind: ResourceGroup
+            metadata:
+              name: {{ $name }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: resource-group
+                crossplane.io/external-name: {{ $rg }}
+            spec:
+              providerConfigRef: {{ toJson $pc }}
+              forProvider:
+                location: {{ $env.location | quote }}
+                tags: {{ toJson $tags }}
+            ---
+            apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
+            kind: FlexibleServer
+            metadata:
+              name: {{ $name }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: server
+                crossplane.io/external-name: {{ $server }}
+            spec:
+              providerConfigRef: {{ toJson $pc }}
+              forProvider:
+                location: {{ $env.location | quote }}
+                resourceGroupNameSelector: {matchControllerRef: true}
+                version: {{ $xr.spec.version | quote }}
+                skuName: B_Standard_B1ms
+                storageMb: {{ mul (max 32 (int $xr.spec.storageGB)) 1024 }}
+                publicNetworkAccessEnabled: false
+                authentication:
+                  activeDirectoryAuthEnabled: true
+                  passwordAuthEnabled: false
+                  tenantId: {{ $env.tenantId | quote }}
+                tags: {{ toJson $tags }}
+            ---
+            apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
+            kind: FlexibleServerDatabase
+            metadata:
+              name: {{ $name }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: database
+                crossplane.io/external-name: app
+            spec:
+              providerConfigRef: {{ toJson $pc }}
+              forProvider:
+                serverIdSelector: {matchControllerRef: true}
+                charset: UTF8
+                collation: en_US.utf8
+            {{- $fqdn := "" }}
+            {{- with (index .observed.resources "server") }}{{ $fqdn = .resource.status.atProvider.fqdn | default "" }}{{ end }}
+            {{- if $fqdn }}
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ printf "%s-conn" $name }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: connection-secret
+            type: Opaque
+            stringData:
+              host: {{ $fqdn }}
+              port: "5432"
+              dbname: app
+              sslmode: require
+            ---
+            apiVersion: external-secrets.io/v1alpha1
+            kind: PushSecret
+            metadata:
+              name: {{ $name }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: connection
+            spec:
+              refreshInterval: 1m
+              deletionPolicy: Delete
+              updatePolicy: Replace
+              secretStoreRefs: [{name: vault, kind: SecretStore}]
+              selector:
+                secret: {name: {{ printf "%s-conn" $name }}}
+              data:
+                - match:
+                    remoteRef: {remoteKey: {{ printf "%s-%s" $ns $name }}}
+            ---
+            apiVersion: {{ $xr.apiVersion }}
+            kind: {{ $xr.kind }}
+            status:
+              connectionSecret: {{ printf "%s-%s" $ns $name }}
+            {{- end }}
+            {{- end }}
+    - step: ready
+      functionRef: {name: function-auto-ready}

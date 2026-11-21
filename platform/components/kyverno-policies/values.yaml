@@ -1,0 +1,7 @@
+# Policy set v1 (ADR-0012): cluster-wide policies. Per-team instances (image admission, ownership labels) are rendered by
+# the tenancy chart from teams/<team>.yaml (D-055). Coordinates come from repo-coords.env via render-repo-coords.sh.
+docsBase: https://github.com/joezuchora/golden-path-k8s/blob/main/docs/policies
+allowedImagePrefixes:
+  - ghcr.io/joezuchora/golden-path-k8s/   # images built by reusable-build-sign (D-031)
+# App namespaces admit only pipeline-built images. A Chainguard base is checked inside them, through the image's
+# base-image attestation (image-admission); Chainguard images aren't deployed directly (D-058).

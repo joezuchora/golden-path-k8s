@@ -1,0 +1,59 @@
+# Tenancy render (D-049): one Application per team definition (platform/tenancy/teams/*.yaml) per cluster with the
+# `control-plane` capability. Onboarding a team is one reviewed PR that adds a file (journey O1). Offboarding is deliberate: the
+# controller policy is create-update, so the platform team deletes the Application and its finalizer prunes.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenancy-control-plane
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  platform.example.org/hosts-control-plane: "true"
+          - git:
+              repoURL: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'
+              revision: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'
+              files:
+                - path: platform/tenancy/teams/*.yaml
+  template:
+    metadata:
+      name: 'tenancy-{{ .team }}-control-plane-{{ .name }}'
+      labels:
+        platform.example.org/component: 'tenancy-{{ .team }}-control-plane'
+        platform.example.org/capability: control-plane
+        platform.example.org/team: '{{ .team }}'
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+    spec:
+      project: platform
+      source:
+        repoURL: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'
+        targetRevision: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'
+        path: platform/tenancy/chart
+        helm:
+          releaseName: 'tenancy-{{ .team }}'
+          valueFiles:
+            - values.yaml
+            - 'values-{{ index .metadata.annotations "platform.example.org/profile" }}.yaml'
+            - ../../policies/verified-bases.yaml
+            - '../teams/{{ .path.filename }}'
+          ignoreMissingValueFiles: true
+          parameters:
+            - {name: capability, value: control-plane}
+            - {name: global.platform.profile, value: '{{ index .metadata.annotations "platform.example.org/profile" }}'}
+            - {name: global.platform.gitBase, value: '{{ index .metadata.annotations "platform.example.org/git-base" }}'}
+            - {name: global.platform.platformRepo, value: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'}
+            - {name: global.platform.platformRevision, value: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'}
+      destination:
+        server: '{{ .server }}'
+        namespace: argocd
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        retry:
+          limit: 10
+          backoff: {duration: 10s, factor: 2, maxDuration: 2m}

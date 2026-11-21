@@ -1,0 +1,5 @@
+apiVersion: v2
+name: tenancy
+description: Renders one team's boundary from platform/tenancy/teams/<team>.yaml (D-049). capability=control-plane renders the Argo CD and Crossplane side; capability=workloads renders the namespaces apps run in.
+type: application
+version: 1.0.0

@@ -1,0 +1,13 @@
+# Journey J1: ship by merging a PR (docs/journeys/j1-ship.md). Exit criterion 3.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: j1-ship
+spec:
+  timeouts: {exec: 15m}
+  steps:
+    - name: merge, sync, admit, roll out, answer over HTTPS, report success to Git
+      try:
+        - script: {timeout: 15m, content: bash ./ship.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}

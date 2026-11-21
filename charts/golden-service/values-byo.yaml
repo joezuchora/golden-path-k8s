@@ -1,0 +1,6 @@
+# cilium_mode=byo (AKS, Phase 4). golden-service has no mode-specific output: the app depends only on HTTPRoute and
+# CiliumNetworkPolicy (CLAUDE.md invariant), so this file must stay identical to the other mode's; make validate diffs the renders.
+# The domain and dependency egress are set by the AKS environment in Phase 4.
+platform:
+  domain: apps.aks.invalid
+  dependencyEgress: none

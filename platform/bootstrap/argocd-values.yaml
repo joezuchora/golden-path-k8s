@@ -1,0 +1,80 @@
+# Argo CD (control-plane capability, D-023). Installed by the bootstrap; everything else is reconciled from Git.
+# Profile-specific settings live in argocd-values-<profile>.yaml.
+dex: {enabled: false}
+configs:
+  params:
+    server.insecure: true            # TLS terminates at the platform gateway; in-cluster traffic only
+    applicationsetcontroller.policy: create-update   # an AppSet never deletes what it no longer renders without review
+  cm:
+    admin.enabled: true
+    timeout.reconciliation: 60s
+    exec.enabled: false
+    application.resourceTrackingMethod: annotation
+  rbac:
+    policy.default: ""               # no implicit read access: every subject needs a role (D-025)
+    scopes: "[groups]"
+notifications:
+  enabled: true
+  argocdUrl: http://argocd-server.argocd.svc
+  secret:
+    create: false                    # argocd-notifications-secret is created by the bootstrap with the Git host token
+  # Git feedback (D-043): the sync / admission result, including the Kyverno message, becomes a commit status on the
+  # app team's deploy repo: the values source (sources[1]) of an app, or the single source of an XR application.
+  # The service URL comes from argocd-values-<profile>.yaml.
+  templates:
+    template.git-commit-status: |
+      webhook:
+        git:
+          method: POST
+          # Templating lives inside the string values: Argo CD parses this block as YAML before it renders the templates.
+          # Repo and revision: the values source (sources[1]) of an app, or the only source of an XR application.
+          path: '/repos/{{ if .app.spec.sources }}{{ call .repo.FullNameByRepoURL (index .app.spec.sources 1).repoURL }}/statuses/{{ index .app.status.sync.revisions 1 }}{{ else }}{{ call .repo.FullNameByRepoURL .app.spec.source.repoURL }}/statuses/{{ .app.status.sync.revision }}{{ end }}'
+          body: |
+            {
+              "context": "platform/argocd/{{.app.metadata.name}}",
+              "target_url": "{{.context.argocdUrl}}/applications/{{.app.metadata.namespace}}/{{.app.metadata.name}}",
+              {{- if eq .app.status.operationState.phase "Running" }}
+              "state": "pending", "description": "Argo CD is syncing"
+              {{- else if and (eq .app.status.operationState.phase "Succeeded") (eq .app.status.health.status "Healthy") }}
+              "state": "success", "description": "Synced and Healthy"
+              {{- else if eq .app.status.operationState.phase "Succeeded" }}
+              "state": "{{ if eq .app.status.health.status "Degraded" }}failure{{ else }}pending{{ end }}", "description": {{ printf "Synced; health %s: %s. Next: scripts/idp-diagnose.sh %s %s --team %s" .app.status.health.status (.app.status.health.message | default "") (index .app.metadata.labels "platform.example.org/app" | default .app.metadata.name) (index .app.metadata.labels "platform.example.org/env" | default "<env>") (index .app.metadata.labels "platform.example.org/team" | default "<team>") | trunc 900 | toJson }}
+              {{- else }}
+              "state": "failure", "description": {{ .app.status.operationState.message | trunc 900 | toJson }}
+              {{- end }}
+            }
+  # Dedup keys (D-067, F44): one status per sync operation (startedAt); for health, one per revision, sync operation and
+  # health transition (lastTransitionTime). So every commit gets a status (even one that changes no manifest), a revision
+  # that goes Healthy → Degraded → Healthy ends on success, and re-evaluating the same state sends nothing.
+  triggers:
+    trigger.on-git-status: |
+      - description: Sync started
+        oncePer: "app.status.operationState.startedAt"
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Running']
+        send: [git-commit-status]
+      - description: Sync failed (invalid manifest, AppProject violation, admission denial)
+        oncePer: "app.status.operationState.startedAt"
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
+        send: [git-commit-status]
+      - description: Synced and Healthy
+        oncePer: "(app.status.sync.revisions != nil ? app.status.sync.revisions[len(app.status.sync.revisions)-1] : app.status.sync.revision) + '/' + app.status.operationState.startedAt + '/' + app.status.health.lastTransitionTime"
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+        send: [git-commit-status]
+      - description: Synced but Degraded (unhealthy rollout)
+        oncePer: "(app.status.sync.revisions != nil ? app.status.sync.revisions[len(app.status.sync.revisions)-1] : app.status.sync.revision) + '/' + app.status.operationState.startedAt + '/' + app.status.health.lastTransitionTime"
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Degraded'
+        send: [git-commit-status]
+  subscriptions:
+    - recipients: [git]
+      triggers: [on-git-status]
+      selector: platform.example.org/git-feedback=true
+controller:
+  resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {memory: 1Gi}}
+repoServer:
+  resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 1Gi}}
+server:
+  resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 256Mi}}
+applicationSet:
+  resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 256Mi}}
+redis:
+  resources: {requests: {cpu: 50m, memory: 32Mi}, limits: {memory: 128Mi}}

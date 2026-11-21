@@ -56,8 +56,12 @@ they never define it. Cite each source only for what it actually says.
 
 ## Commands
 <!-- Planned targets; none exist yet. Replace with verified commands as each phase lands. -->
-- `make kind-up` / `make kind-down` (Docker required; use WSL2 or Git Bash on Windows)
-- `make validate`: all static checks (kubeconform, helm lint, `crossplane beta validate`, tofu fmt/validate)
+- `make doctor [PROFILE=local|docs|github|cloud|all]`: prerequisite checks (D-056); setup guide in `docs/getting-started.md`
+- `make tools`: pinned, checksum-verified CLIs into `./.bin` (D-048; upgrade path in `docs/toolchain.md`)
+- `make kind-up` / `make kind-down` (Docker required; use WSL2 or Git Bash on Windows); `make kind-sync` pushes the working
+  tree to the in-cluster Gitea (D-043). kind targets use `.kube/golden-path.yaml`, never the global current context
+- `make validate`: all static checks (kubeconform, helm lint, `crossplane resource validate`, `crossplane composition render`
+  golden files, tofu fmt/validate) (D-040)
 - `make test-policies`. Single policy: `kyverno test platform/policies/tests/<policy-dir>`
 - `make e2e JOURNEY=<dir>` (Chainsaw on kind)
 - `tofu -chdir=infra/envs/<env> init|plan`; `tofu fmt -recursive -check infra && tflint --recursive`

@@ -1,0 +1,4 @@
+# kind profile: the platform Gateway domain (platform-gateway values-kind.yaml).
+platform:
+  domain: apps.kind.test
+  dependencyEgress: inCluster

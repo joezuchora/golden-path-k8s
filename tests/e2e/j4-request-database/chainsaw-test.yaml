@@ -1,0 +1,13 @@
+# Journey J4: request a database (docs/journeys/j4-request-database.md). Exit criterion 6 (D-024, ADR-0002 steps 1-5).
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: j4-request-database
+spec:
+  timeouts: {exec: 30m}
+  steps:
+    - name: request, connect, rotate, delete
+      try:
+        - script: {timeout: 30m, content: bash ./lifecycle.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}

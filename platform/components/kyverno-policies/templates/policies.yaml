@@ -1,0 +1,158 @@
+{{- $d := .Values.docsBase }}
+# Shared match: every team app namespace (<team>-<env>, labeled by tenancy). Tenant namespaces on the control plane
+# (tenant-scope=control-plane) are excluded: only platform operators run pods there (CloudNativePG, D-053), and
+# tenant-namespace-xrs-only keeps teams to XRs in them.
+{{- define "kp.apps" }}
+    namespaceSelector:
+      matchExpressions:
+        - {key: platform.example.org/team, operator: Exists}
+        - {key: platform.example.org/tenant-scope, operator: DoesNotExist}
+{{- end }}
+{{- define "kp.match" }}
+  matchConstraints:
+    {{- include "kp.apps" . }}
+    resourceRules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods]}
+  autogen:
+    podControllers:
+      controllers: [deployments, statefulsets, daemonsets, jobs, cronjobs]
+{{- end }}
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-resources
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/require-resources.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  {{- include "kp.match" . }}
+  variables:
+    - name: containers
+      expression: "object.spec.containers + (has(object.spec.initContainers) ? object.spec.initContainers : [])"
+    - name: missing
+      expression: >-
+        variables.containers.filter(c, !has(c.resources) || !has(c.resources.requests) || !has(c.resources.limits)
+        || !('cpu' in c.resources.requests) || !('memory' in c.resources.requests) || !('memory' in c.resources.limits)).map(c, c.name)
+  validations:
+    - expression: "size(variables.missing) == 0"
+      messageExpression: >-
+        'require-resources: container(s) ' + variables.missing.join(', ') + ' in ' + object.metadata.name +
+        ' lack a cpu request, a memory request or a memory limit. Why: without them the scheduler can overcommit nodes and
+        one app can starve its neighbours. Fix: set resources.requests.cpu, resources.requests.memory and
+        resources.limits.memory in your golden-service values. Docs: {{ $d }}/require-resources.md'
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: allowed-registries
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/allowed-registries.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  {{- include "kp.match" . }}
+  variables:
+    - name: images
+      expression: >-
+        (object.spec.containers + (has(object.spec.initContainers) ? object.spec.initContainers : [])).map(c, c.image)
+    - name: bad
+      expression: >-
+        variables.images.filter(i, ![{{ range $i, $p := .Values.allowedImagePrefixes }}{{ if $i }}, {{ end }}'{{ $p }}'{{ end }}].exists(p, i.startsWith(p)))
+  validations:
+    - expression: "size(variables.bad) == 0"
+      messageExpression: >-
+        'allowed-registries: image(s) ' + variables.bad.join(', ') + ' come from a registry the platform does not admit.
+        Why: only images built and signed by the platform pipeline can run, so every running image has provenance. Fix: build the image with reusable-build-sign.yaml@v1 and use its
+        {{ index .Values.allowedImagePrefixes 0 }} digest. Docs: {{ $d }}/allowed-registries.md'
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-controller
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/require-controller.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  matchConstraints:
+    {{- include "kp.apps" . }}
+    resourceRules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE], resources: [pods]}
+  validations:
+    - expression: "has(object.metadata.ownerReferences) && size(object.metadata.ownerReferences) > 0"
+      messageExpression: >-
+        'require-controller: Pod ' + object.metadata.name + ' has no owning controller. Why: bare Pods skip the labels,
+        rollout and health that the platform tracks per Deployment (ADR-0007), and nothing recreates them. Fix: ship a
+        Deployment (or Job) through the golden-service chart. Docs: {{ $d }}/require-controller.md'
+---
+# Tenant namespaces on the control plane (tenant-<team>-<env>) hold a team's XRs and nothing else (D-024). The team's
+# AppProject may sync there, so anything else Argo CD applies there is rejected.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: tenant-namespace-xrs-only
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/tenant-namespace-xrs-only.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  # Admission only: a background scan would need Kyverno to read every Secret in tenant namespaces, and the check only
+  # makes sense for what Argo CD applies anyway.
+  evaluation:
+    background: {enabled: false}
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {platform.example.org/tenant-scope: control-plane}
+    resourceRules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods, services, configmaps, secrets, serviceaccounts, persistentvolumeclaims]}
+      - {apiGroups: [apps], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [deployments, statefulsets, daemonsets, replicasets]}
+      - {apiGroups: [batch], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [jobs, cronjobs]}
+      - {apiGroups: [gateway.networking.k8s.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [httproutes]}
+      - {apiGroups: [platform.example.org], apiVersions: [v1], operations: [CREATE, UPDATE], resources: ["*"]}
+  matchConditions:
+    - name: applied-by-argocd
+      expression: "request.userInfo.username == 'system:serviceaccount:argocd:argocd-application-controller'"
+    # Only the team's XR applications (<team>-xrs-<env>, rendered by tenancy). Argo CD writes this annotation itself on
+    # every apply, so a manifest can't claim to belong to the platform's tenancy render.
+    - name: synced-by-a-team-xrs-app
+      expression: >-
+        has(object.metadata.annotations) && 'argocd.argoproj.io/tracking-id' in object.metadata.annotations &&
+        object.metadata.annotations['argocd.argoproj.io/tracking-id'].matches('^[a-z0-9-]+-xrs-[a-z0-9-]+:')
+  validations:
+    - expression: "object.apiVersion.startsWith('platform.example.org/')"
+      messageExpression: >-
+        'tenant-namespace-xrs-only: ' + object.kind + ' ' + object.metadata.name + ' was synced into ' +
+        object.metadata.namespace + ', which holds only XRs. Why: tenant namespaces on the control plane carry your
+        dependency requests (for example PostgreSQLInstance) next to platform credentials; apps run in <team>-<env>.
+        Fix: move this manifest out of xrs/<env>/ in your deploy repo, into apps/<app>/<env>.yaml values.
+        Docs: {{ $d }}/tenant-namespace-xrs-only.md'
+---
+# Hostnames belong to tenants (Gateway API guidance on hostname hijacking): every HTTPRoute host in an app namespace must
+# end its first label with -<namespace>, so two teams' same-named apps get distinct hosts and no team can claim another's.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: route-hostnames
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/route-hostnames.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  matchConstraints:
+    {{- include "kp.apps" . }}
+    resourceRules:
+      - {apiGroups: [gateway.networking.k8s.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [httproutes]}
+  variables:
+    - name: hosts
+      expression: "has(object.spec.hostnames) ? object.spec.hostnames : []"
+    - name: foreign
+      expression: "variables.hosts.filter(h, !h.split('.')[0].endsWith('-' + object.metadata.namespace))"
+  validations:
+    - expression: "size(variables.hosts) > 0 && size(variables.foreign) == 0"
+      messageExpression: >-
+        'route-hostnames: HTTPRoute ' + object.metadata.name + ' claims ' + (size(variables.hosts) == 0 ? 'no hostname
+        (it would match every host)' : 'host(s) ' + variables.foreign.join(', ')) + ' outside namespace ' +
+        object.metadata.namespace + '. Why: hosts on the shared gateway belong to one tenant each, so no team can take
+        over a URL that belongs to another team. Fix: leave route.host unset (the default is <app>-' + object.metadata.namespace +
+        '.<domain>) or keep the -' + object.metadata.namespace + ' suffix on the first label. Docs: {{ $d }}/route-hostnames.md'

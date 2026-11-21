@@ -1,0 +1,30 @@
+# Platform check: placement (D-023, exit criterion 1). Each component renders exactly once, from capability labels only.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: placement
+spec:
+  steps:
+    - name: the in-cluster target is a declarative cluster Secret with both capability labels
+      try:
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: cluster-in-cluster
+                namespace: argocd
+                labels:
+                  argocd.argoproj.io/secret-type: cluster
+                  platform.example.org/hosts-control-plane: "true"
+                  platform.example.org/hosts-workloads: "true"
+    - name: each component is rendered exactly once, Synced and Healthy
+      try:
+        - script:
+            timeout: 10m
+            content: bash ./check-placement.sh
+    - name: a workloads-only cluster gets exactly the workloads capability (split fixture)
+      try:
+        - script:
+            timeout: 5m
+            content: bash ./check-split.sh

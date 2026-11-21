@@ -27,7 +27,7 @@ Blog meaning: "Your app gets its own boundary"; "You can request an environment"
 |---|---|---|
 | One namespace per team per env (`<team>-<env>`), created from the team definition, with namespaced RBAC bound to the team's Entra group | Tenancy render, Kubernetes RBAC | Cross-tenant deny test for the Kubernetes API (D-025) |
 | **Network boundary:** default-deny ingress and egress per namespace; L3/L4 allows by label and port; DNS egress to kube-dns; ingress only from the gateway | Cilium CNI + `CiliumNetworkPolicy` (D-021, D-029) | `tests/e2e/network-contract/`, run on kind, managed AKS and byo AKS (D-027) |
-| Self-service dependencies through a namespaced XR (first: `PostgreSQLInstance`), the same API on kind (`local`) and AKS (`azure`) | Crossplane v2, namespaced managed resources only (D-024) | `crossplane beta validate`; XR lifecycle e2e |
+| Self-service dependencies through a namespaced XR (first: `PostgreSQLInstance`), the same API on kind (`local`) and AKS (`azure`) | Crossplane v2, namespaced managed resources only (D-024) | `crossplane resource validate` (D-040); XR lifecycle e2e |
 | **"Ready" means usable:** the app connects with the brokered credential, survives a credential rotation, and leaves nothing behind after deletion | Crossplane `Usage`, `deletionPolicy: Delete`, per-tenant resource group (ADR-0002) | XR lifecycle e2e, steps 1–5 in [ADR-0002](adr/0002-crossplane-v2-external-resources.md) |
 | Cloud credentials never exist on the workload cluster (split AKS) | Control/workload split (ADR-0001) | Split-topology isolation check (AKS only) |
 
@@ -64,8 +64,10 @@ app's manifests don't.
 | `byo` (AKS) | Cilium Gateway | Cilium v1.20.0 |
 | kind | Cilium Gateway | Cilium v1.20.0 |
 
-All profiles pin **Gateway API v1.6.1**. Both controllers are v1.6.1 conformant in the GATEWAY-HTTP, GRPC and TLS profiles
-with zero failures (F14).
+All profiles pin **Gateway API v1.6.1** as the conformance basis. Both controllers are v1.6.1 conformant in the GATEWAY-HTTP,
+GRPC and TLS profiles with zero failures (F14). The installed patch versions (for example Gateway API CRDs v1.6.3, which
+Cilium 1.20 requires) follow the pin rule in D-039 and are listed in the
+[Version pins](adr/README.md#version-pins) table; the network-contract suite re-proves every promised feature on them.
 
 **Promised route features (v1):**
 1. HTTPS listener with a cert-manager certificate
@@ -242,3 +244,18 @@ Per-user Backstage isolation is promised on AKS only (D-025).
 | Development environments; messaging and event services | D-033 |
 | Aggregated logs and distributed tracing | D-033 |
 | Dependencies other than PostgreSQL | ADR-0002 (catalog expansion) |
+| More than one database per app (`dependencies.postgres` takes one entry in v1) | D-071 |
+| Credentials isolated per app within a team and env on kind (the kind vault is shared by the team's apps in that env; per-app scoping is the AKS identity gate) | D-071, ADR-0008 |
+| More than one workload cluster per env for team apps (Application names have no cluster component) | D-072 (Phase 4) |
+| Workloads other than an HTTP service: slow-starting inference, queue-driven jobs, stateful brownfield services, serverless or microVM isolation | Supported baseline below |
+| Brownfield adoption (existing namespaces, existing cloud resources, durable data) | Supported baseline below |
+| Team deploy-repo PR checks (render the values, evaluate current policy before merge); on kind the journeys merge first and read the post-merge status | Phase 6 (with Renovate and `decision-log-check`) |
+
+**Supported baseline (v1).** golden-service runs one stateless HTTP service per app: a Deployment and Service, an HTTP
+container with liveness and readiness probes, a read-only root filesystem, Pod Security `restricted`, fixed CPU and memory
+requests, one HTTPRoute and at most one PostgreSQL dependency. Anything else needs a decision before a team adopts it: a
+separate profile or chart has to state its lifecycle, identity, diagnostics and operator support, and prove them the way
+the journeys do. Brownfield adoption is out of v1: applying tenancy defaults to an existing namespace can change its
+network and Pod Security behavior, and deleting an XR deletes its data (J4 proves this for a disposable database).
+Adoption needs an inventory, an ownership handoff, an `Audit` phase before enforcement and an observe-only import
+(`managementPolicies`, ADR-0002), and durable data needs a proven restore first.

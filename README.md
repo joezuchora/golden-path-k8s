@@ -176,12 +176,20 @@ the blast-radius boundary. Kind is the one place the identity promise deviates (
 
 ## Quickstarts
 
-### kind: *Planned (Phase 3). These commands don't exist yet.*
+### Prerequisites
+
+Start with **[docs/getting-started.md](docs/getting-started.md)** and `make doctor`, which checks every prerequisite (D-056):
+a Linux-container engine with at least 10 GiB of memory, cgroup v2 and kernel 5.14 or later, bash 4 or later, GNU make 4 or
+later, and outbound HTTPS. `make tools` installs every other CLI at its pinned, checksum-verified version (D-048,
+[toolchain](docs/toolchain.md)).
+
+### kind: *In progress (Phase 3).* `doctor`, `tools`, `kind-up` and `kind-down` work; the journeys arrive during Phase 3.
 
 ```bash
+make doctor                      # prerequisites (PROFILE=local|docs|github|cloud|all)
 make kind-up                     # Docker required; on Windows use WSL2 or Git Bash
 make validate                    # static checks
-make test-policies               # kyverno test for every policy
+make test-policies               # kyverno test for every policy (needs network: F35)
 make e2e JOURNEY=<journey-dir>   # Chainsaw journey on kind
 make kind-down
 ```

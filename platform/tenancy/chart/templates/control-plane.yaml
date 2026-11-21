@@ -1,0 +1,169 @@
+{{- include "tenancy.validate" . }}
+{{- if eq .Values.capability "control-plane" }}
+{{- $deployRepo := printf "%s/%s.git" (trimSuffix "/" .Values.global.platform.gitBase) .Values.deployRepo }}
+{{- range $env := .Values.envs }}
+---
+# Control-plane tenant namespace for the team's XRs (D-024). Compositions read these labels to derive tags (ADR-0007).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-{{ $.Values.team }}-{{ $env }}
+  labels:
+    {{- include "tenancy.labels" $ | nindent 4 }}
+    platform.example.org/env: {{ $env }}
+    platform.example.org/tenant-scope: control-plane
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $.Values.team }}-developers-view
+  namespace: tenant-{{ $.Values.team }}-{{ $env }}
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: {{ $.Values.groups.developers | quote }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: view}
+{{- end }}
+---
+# The team's Argo CD boundary (D-025): its own repos, its own namespaces, no cluster-scoped resources.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.team }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"   # before the team's ApplicationSets, which reference it
+  labels:
+    {{- include "tenancy.labels" . | nindent 4 }}
+spec:
+  description: Team {{ .Values.team }} (rendered from platform/tenancy/teams/{{ .Values.team }}.yaml)
+  sourceRepos:
+    - {{ .Values.global.platform.platformRepo | quote }}
+    - {{ $deployRepo | quote }}
+  destinations:
+    {{- range $env := .Values.envs }}
+    - {server: "*", namespace: {{ printf "%s-%s" $.Values.team $env | quote }}}
+    - {server: "*", namespace: {{ printf "tenant-%s-%s" $.Values.team $env | quote }}}
+    {{- end }}
+  clusterResourceWhitelist: []
+  namespaceResourceBlacklist:
+    - {group: "", kind: ResourceQuota}
+    - {group: "", kind: LimitRange}
+    - {group: rbac.authorization.k8s.io, kind: "*"}
+    - {group: policies.kyverno.io, kind: "*"}
+    - {group: external-secrets.io, kind: SecretStore}
+    - {group: external-secrets.io, kind: ClusterSecretStore}
+    - {group: external-secrets.io, kind: PushSecret}
+  roles:
+    - name: developer
+      description: Read and sync the team's own applications
+      groups: [{{ .Values.groups.developers | quote }}]
+      policies:
+        - p, proj:{{ .Values.team }}:developer, applications, get, {{ .Values.team }}/*, allow
+        - p, proj:{{ .Values.team }}:developer, applications, sync, {{ .Values.team }}/*, allow
+        - p, proj:{{ .Values.team }}:developer, logs, get, {{ .Values.team }}/*, allow
+---
+# The team's apps: one Application per apps/<app>/<env>.yaml in its deploy repo, placed on workload clusters by
+# capability label (D-023). The chart is the platform's golden-service; the values come from the team's repo.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-{{ .Values.team }}
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  platform.example.org/hosts-workloads: "true"
+          - git:
+              repoURL: {{ $deployRepo | quote }}
+              revision: main
+              files:
+                - path: apps/*/*.yaml
+  template:
+    metadata:
+      name: '{{ .Values.team }}-{{ "{{" }} .app {{ "}}" }}-{{ "{{" }} .env {{ "}}" }}'
+      labels:
+        platform.example.org/team: {{ .Values.team }}
+        platform.example.org/app: '{{ "{{" }} .app {{ "}}" }}'
+        platform.example.org/env: '{{ "{{" }} .env {{ "}}" }}'
+        platform.example.org/git-feedback: "true"
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+    spec:
+      project: {{ .Values.team }}
+      sources:
+        - repoURL: {{ .Values.global.platform.platformRepo | quote }}
+          targetRevision: {{ .Values.global.platform.platformRevision | quote }}
+          path: charts/golden-service
+          helm:
+            releaseName: '{{ "{{" }} .app {{ "}}" }}'
+            valueFiles:
+              - values.yaml
+              - 'values-{{ "{{" }} index .metadata.annotations "platform.example.org/profile" {{ "}}" }}.yaml'
+              - '$values/{{ "{{" }} .path.path {{ "}}" }}/{{ "{{" }} .path.filename {{ "}}" }}'
+            ignoreMissingValueFiles: true
+        - repoURL: {{ $deployRepo | quote }}
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{ "{{" }} .server {{ "}}" }}'
+        namespace: '{{ .Values.team }}-{{ "{{" }} .env {{ "}}" }}'
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        retry:
+          limit: 2
+          backoff: {duration: 5s, factor: 2, maxDuration: 30s}
+---
+# The team's dependency requests (XRs, D-024): xrs/<env>/*.yaml in its deploy repo → tenant-<team>-<env> on the
+# control-plane cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: xrs-{{ .Values.team }}
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  platform.example.org/hosts-control-plane: "true"
+          # One Application per env in the team definition, not per directory: deleting the last XR of an env must
+          # prune it, so the Application has to outlive an empty xrs/<env>/ (it holds a README.md, which Argo CD ignores).
+          - list:
+              elements:
+                {{- range .Values.envs }}
+                - {env: {{ . }}}
+                {{- end }}
+  template:
+    metadata:
+      name: '{{ .Values.team }}-xrs-{{ "{{" }} .env {{ "}}" }}'
+      labels:
+        platform.example.org/team: {{ .Values.team }}
+        platform.example.org/git-feedback: "true"
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+    spec:
+      project: {{ .Values.team }}
+      source:
+        repoURL: {{ $deployRepo | quote }}
+        targetRevision: main
+        path: 'xrs/{{ "{{" }} .env {{ "}}" }}'
+      destination:
+        server: '{{ "{{" }} .server {{ "}}" }}'
+        namespace: 'tenant-{{ .Values.team }}-{{ "{{" }} .env {{ "}}" }}'
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        retry:
+          limit: 2
+          backoff: {duration: 5s, factor: 2, maxDuration: 30s}
+{{- end }}

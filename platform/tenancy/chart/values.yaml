@@ -1,0 +1,29 @@
+# Set by the tenancy ApplicationSets: the team file is the values file; these come from the cluster Secret.
+capability: ""          # control-plane | workloads
+contractVersion: "1.0"
+global:
+  platform:
+    profile: ""
+    gitBase: ""
+    platformRepo: ""
+    platformRevision: main
+# Connection-secret backend (D-064): kubernetes (kind: a vault namespace per team and env) | keyvault (AKS, Phase 4).
+secrets:
+  backend: ""
+# How gateway traffic is identified in CiliumNetworkPolicy, per profile (values-<profile>.yaml).
+gatewayIngress:
+  fromEntities: [ingress]   # Cilium Gateway (kind, byo): traffic from the Cilium Envoy proxy has the reserved ingress identity
+  fromEndpoints: []
+# Image admission (D-026, D-055), rendered into per-team policy instances. Coordinates come from repo-coords.env
+# (rendered by scripts/render-repo-coords.sh); verifiedBases come from platform/policies/verified-bases.yaml.
+admission:
+  imagePrefix: ghcr.io/joezuchora/golden-path-k8s/
+  platformRepo: https://github.com/joezuchora/golden-path-k8s
+  signerWorkflow: https://github.com/joezuchora/golden-path-k8s/.github/workflows/reusable-build-sign.yaml
+  oidcIssuer: https://token.actions.githubusercontent.com
+  rekorURL: https://rekor.sigstore.dev
+  docsBase: https://github.com/joezuchora/golden-path-k8s/blob/main/docs/policies
+  # kind only (values-kind.yaml): also accept this repo's own branch refs as signer and caller, so a platform PR can
+  # prove itself before merge (D-055). Never set on AKS.
+  acceptPlatformBranchRefs: false
+  verifiedBases: []

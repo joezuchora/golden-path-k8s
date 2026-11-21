@@ -1,0 +1,56 @@
+# Placement (D-023): renders every platform component that declares the `workloads` capability
+# (platform/components/<c>/workloads.yaml) onto every cluster whose Secret carries
+# platform.example.org/hosts-workloads=true. It selects on the capability label only, never on a cluster name.
+# Repo, revision and profile come from the cluster Secret's annotations, so the same file serves kind and AKS.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: components-workloads
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  platform.example.org/hosts-workloads: "true"
+          - git:
+              repoURL: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'
+              revision: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'
+              files:
+                - path: platform/components/*/workloads.yaml
+  template:
+    metadata:
+      name: '{{ .component }}-{{ .name }}'
+      labels:
+        platform.example.org/component: '{{ .component }}'
+        platform.example.org/capability: workloads
+    spec:
+      project: platform
+      source:
+        repoURL: '{{ index .metadata.annotations "platform.example.org/platform-repo" }}'
+        targetRevision: '{{ index .metadata.annotations "platform.example.org/platform-revision" }}'
+        path: '{{ .path.path }}'
+        helm:
+          releaseName: '{{ .component }}'
+          valueFiles:
+            - values.yaml
+            - 'values-{{ index .metadata.annotations "platform.example.org/profile" }}.yaml'
+          ignoreMissingValueFiles: true
+          parameters:
+            - name: global.platform.profile
+              value: '{{ index .metadata.annotations "platform.example.org/profile" }}'
+            - name: global.platform.gitBase
+              value: '{{ index .metadata.annotations "platform.example.org/git-base" }}'
+      destination:
+        server: '{{ .server }}'
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 30
+          backoff: {duration: 10s, factor: 2, maxDuration: 2m}

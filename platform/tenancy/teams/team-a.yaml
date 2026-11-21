@@ -1,0 +1,18 @@
+# Team definition: the only source of team, owner, cost-center and data-classification (ADR-0007, D-017, D-028).
+# Changed only by a reviewed PR (journey O1). Rendered by platform/appsets/tenancy-*.yaml (D-049).
+team: team-a
+owner: team-a-oncall
+costCenter: cc-1001
+dataClassification: internal
+envs: [dev]
+# Identity groups. AKS: the Entra group object ID. kind (D-050): the group name used for impersonation, and the
+# Argo CD local account bound to the team's AppProject role.
+groups:
+  developers: team-a
+# The team's deploy repo (owner/name) on the profile's Git host (cluster annotation platform.example.org/git-base).
+deployRepo: team-a/deploy
+# Image caller allowlist for admission (D-026, D-055): images must be built by reusable-build-sign from these repos/refs.
+callers:
+  - repo: joezuchora/golden-path-k8s
+    refs: [refs/heads/main, refs/tags/v*]
+quota: {cpu: "4", memory: 8Gi, pods: "40"}

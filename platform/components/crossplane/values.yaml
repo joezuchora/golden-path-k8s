@@ -1,0 +1,3 @@
+crossplane:
+  resourcesCrossplane: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}
+  resourcesRBACManager: {requests: {cpu: 10m, memory: 64Mi}, limits: {memory: 256Mi}}

@@ -1,0 +1,10 @@
+# kind-only additions. Without kube-proxy, Cilium must reach the API server directly.
+k8sServiceHost: golden-path-control-plane
+k8sServicePort: 6443
+image:
+  pullPolicy: IfNotPresent
+# kind deviation (D-057, F40): with eBPF masquerading, pods on Docker Desktop can't reach the engine's DNS proxy
+# (192.168.65.254) over UDP or TCP, so CoreDNS can't resolve external names. iptables masquerading works. eBPF host
+# routing therefore isn't shown on kind; byo AKS keeps bpf.masquerade=true from values.yaml.
+bpf:
+  masquerade: false

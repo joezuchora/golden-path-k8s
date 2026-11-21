@@ -1,0 +1,39 @@
+{{- if .Values.route.enabled }}
+# Contract P2: the app depends only on HTTPRoute, attached to the platform Gateway by a fixed name, so this renders the
+# same in every profile (managed, byo, kind). HTTP → HTTPS redirect (feature 6) is the platform's own route.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.app }}
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.platform.gateway.name }}
+      namespace: {{ .Values.platform.gateway.namespace }}
+      sectionName: {{ .Values.platform.gateway.sectionName }}
+  hostnames: [{{ include "gs.host" . | quote }}]
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: {{ .Values.route.pathPrefix | quote }}}
+          {{- with .Values.route.headerMatches }}
+          headers:
+            {{- range . }}
+            - {type: Exact, name: {{ .name | quote }}, value: {{ .value | quote }}}
+            {{- end }}
+          {{- end }}
+      {{- $req := include "gs.headerFilter" (dict "h" .Values.route.requestHeaders "type" "RequestHeaderModifier" "key" "requestHeaderModifier") }}
+      {{- $res := include "gs.headerFilter" (dict "h" .Values.route.responseHeaders "type" "ResponseHeaderModifier" "key" "responseHeaderModifier") }}
+      {{- if or (trim $req) (trim $res) }}
+      filters:
+        {{- $req | nindent 8 }}
+        {{- $res | nindent 8 }}
+      {{- end }}
+      backendRefs:
+        {{- if .Values.canary.enabled }}
+        - {name: {{ .Values.app }}, port: 80, weight: {{ sub 100 (int .Values.canary.weight) }}}
+        - {name: {{ .Values.app }}-canary, port: 80, weight: {{ .Values.canary.weight }}}
+        {{- else }}
+        - {name: {{ .Values.app }}, port: 80}
+        {{- end }}
+{{- end }}

@@ -1,0 +1,11 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: require-resources}
+policies: [../.rendered/cluster.yaml]
+resources: [resources.yaml]
+variables: values.yaml
+userinfo: userinfo.yaml
+results:
+  - {policy: require-resources, resources: [good], kind: Deployment, result: pass}
+  - {policy: require-resources, resources: [no-limits], kind: Deployment, result: fail}
+  - {policy: require-resources, resources: [no-requests], kind: Pod, result: fail}

@@ -99,3 +99,132 @@ D-025 (tenant isolation). `verify-docs.sh` now requires every revisited decision
 **Lesson.** A summary of a source drifts from the source. The Phase 1 attributions were close but not exact. In a public
 reference repo, "close" is how a reviewer finds the first crack. Now every citation must resolve to an F-entry, and a
 script checks it (D-035).
+
+## 2026-11-20: Phase 3 re-verification and the pin rule (D-027 → D-039, D-040, D-041)
+
+Before Phase 3 built anything on F3–F15, every one was fetched again from its primary source. Eleven held. The rest moved:
+
+| Finding | What the log said | What the source says now | Change |
+|---|---|---|---|
+| Gateway API pins | Gateway API v1.6.1, Envoy Gateway v1.9.0, Cilium v1.20.0, as installable pins (D-027) | Cilium 1.20 "must" have the Gateway API **v1.6.3** CRDs (F30); v1.6.3 and v1.7.0 now exist (F14) | The conformance basis (v1.6.1 / v1.9.0 / v1.20.0) is kept as the contract's evidence; the installed versions are the newest eligible patches (≥14 days old), and the network-contract suite re-proves the features on them (D-039) |
+| Kyverno policy API | Admission designed on `ClusterPolicy` `verifyImages` (ADR-0005) | `ClusterPolicy` is deprecated in 1.19 and **not executed** in 1.20 (F24) | Policy set v1 moves to the CEL policy types before a single policy is written (D-042, ADR-0012) |
+| Crossplane CLI | `crossplane beta validate` | v2.4 has `crossplane resource validate` and `crossplane composition render` (F26) | Commands corrected (D-040) |
+| Quotes | F4, F10, F13 quoted phrases the sources no longer contain, or attributed them to the wrong page | See F4, F10, F13 | Text corrected (D-041) |
+
+**Why it matters.** The design said "pin what the contract depends on". The re-check showed what that means in practice: a
+pin set can be internally inconsistent (Cilium 1.20 can't run on the v1.6.1 CRDs), and a policy engine can drop the API a
+design was written against between two minor releases. Separating the *evidence* a pin rests on from the *patch* that is
+installed keeps the contract honest without freezing security fixes.
+
+**Lesson.** Re-verifying cost an hour and changed the policy engine's API before any code depended on it. Done after the
+build, the same finding would have been a rewrite of the whole policy set.
+
+## 2026-11-20: Phase 3 planning decisions (D-012 → D-046, D-026 → D-042, D-043 to D-053)
+
+**Placeholder coordinates retired (D-012 → D-046).** Phase 1 kept the repo coordinates as `<org>/golden-path-k8s` because the
+publishing owner wasn't decided. Phase 3 signs real images, and the admission policy binds the signer and the caller repo
+(D-026), so a placeholder can't be tested. The coordinates become `joezuchora/golden-path-k8s`, from one file, and the repo is
+made public. Planning also found the repo was still private, which would have broken D-031's premise (free GHCR, anonymous
+pulls) and put the kind stack on 8 GB CI runners (F28, F29).
+
+**Admission mechanism moved, binding unchanged (D-026 → D-042).** The three-way binding (signer + caller + base digest) and
+fail-closed behavior stand. The API changes from `ClusterPolicy` `verifyImages` to `ImageValidatingPolicy`, because Kyverno
+1.20 no longer executes `ClusterPolicy` (F24). ADR-0012 records the gate: prove the binding and offline `kyverno test` before
+writing the policy set.
+
+**Choices made with the owner.** Composition function: function-go-templating, gated by a Namespace-read spike (D-044,
+ADR-0011). Git host for kind journeys: in-cluster Gitea, so "a rejected change gives Git feedback" is tested against a real
+commit-status API (D-043). Journeys: J1–J4 plus O1 (D-052). The minimum CI (build-sign workflow and a PR check) moves from
+Phase 6 into Phase 3, because exit criterion 3 needs a CI-signed image (D-047).
+
+## Open questions about platform fit
+
+The [four-role platform review](platform-review.md) records gaps raised from development, infrastructure,
+QA, and security perspectives.
+
+The [Developer Contract v1](developer-contract.md) starts with a containerized service on AKS. The four
+promises give us a way to evaluate other workloads and enterprise requirements. These questions record
+where we may need an extension, an integration with a capability another team operates, or a separate
+supported path.
+
+### Hybrid and hub-and-spoke networking
+
+Could the platform run in an existing enterprise hub-and-spoke network, including multiple regions or
+subscriptions and private connections to on-premises systems? The current network contract describes
+application routing and isolation inside the workload environment. An organization may already own transit
+routing, firewalls, address space, and DNS. The question is where that ownership ends and where platform
+self-service begins. A concrete case is a team requesting private access to an on-premises dependency
+with approved DNS, controlled egress, and a clear way to diagnose failures across that boundary.
+
+### GPU inference and training
+
+Long-running inference endpoints may fit parts of the service path, including HTTPS, identity, rollout,
+and diagnostics. What extra guarantees would teams need around GPU quota, capacity, scaling, model artifacts,
+and cost? Training has a different lifecycle. It needs a way to queue and run jobs, access data, resume
+from checkpoints, and release capacity. Which workloads could use an optional AKS profile, and which
+would be better served by an existing ML platform? In either case, who owns failures and how does the team
+see its run status and costs?
+
+### Serverless, microVMs, and other runtimes
+
+What should a team do when it needs event-driven serverless execution, a microVM isolation boundary, or
+a VM-based runtime? Could it request an approved runtime and keep a familiar path for ownership, identity,
+release and rollback, diagnostics, and support? Where a runtime cannot provide a promise, the team needs
+to see the limitation and the supported route before choosing it.
+
+### GitHub organization and repository governance
+
+Treat GitHub organization setup as a platform design question. The current design covers a reusable
+build/sign workflow (D-047), admission's trust in the workflow and caller (D-055), and Renovate base-image
+updates (D-019). What should an organization require for new and existing repositories? Capture the
+baseline for repo and project settings, access and ownership, branch and merge rules, required checks,
+workflow permissions, approved actions, and Renovate presets and ownership. Separate the defaults that
+templates scaffold from standards enforced by organization or repository settings, and ask how drift and
+approved exceptions would be handled.
+
+### Greenfield and brownfield adoption
+
+Can a new team start with the platform defaults while an existing team adopts the same contract in
+stages? An existing organization may already have clusters, networks, identity, repositories, CI/CD,
+and running workloads with established owners. Which assets can the platform reference in place, which
+can it take over with an explicit ownership handoff, and which require migration or an exception?
+How would teams assess gaps before enforcement, preserve existing access and deployment paths during
+adoption, and back out of a cutover if it fails? A concrete case is onboarding an existing service and
+repo while retaining its private network and determining which release checks already meet the contract.
+
+For each case, the useful answer is what a team can request, which of the four promises it gets, who
+operates and supports it, and where it should go when the platform cannot meet the need.
+
+## 2026-11-21: Phase 3 build findings and owner review (D-057 to D-068)
+
+Building the kind platform turned several assumptions into measurements, and some of them were wrong.
+
+- **Cilium on Docker Desktop (D-057, F40).** eBPF masquerading broke pod DNS through Docker Desktop's resolver, so kind
+  runs iptables masquerading. The repo still cites eBPF host routing as a documented Cilium capability (D-018), but it is
+  now a `byo` property; kind shows kube-proxy replacement and socket-LB only.
+- **Direct Chainguard deploys (ADR-0005 narrowed by D-058).** The planned `chainguard-images` policy couldn't have an
+  honest fail case, and a directly deployed image would skip the caller and base binding of D-026. App namespaces now
+  admit only pipeline-built images; the Chainguard base is checked inside them.
+- **Cosign format (D-059, F41).** cosign v3 writes a new bundle format by default, and a legacy attestation without a Rekor
+  entry failed verification on the pinned Kyverno. CI signs in the legacy format with Rekor and checks every image against
+  the rendered policy before any cluster sees it.
+- **Policy scope (D-063).** App policies first excluded the CloudNativePG operator by requester; job pods created by the
+  job controller showed that was too narrow. App policies now select app namespaces, and tenant namespaces get
+  `tenant-namespace-xrs-only`, keyed on Argo CD's own tracking annotation.
+- **XR deletion (D-061).** A per-directory XR application disappeared with its last file, so nothing was pruned. It is now
+  generated per env from the team definition.
+
+The owner's review of the working tree found twelve issues; each was reproduced or checked against its source before the
+fix, and none were dismissed:
+
+- **GHCR visibility (F29 corrected by F43, D-046 rationale corrected by D-065).** A public repo doesn't make its packages
+  public. GitHub's own pages disagree, so the package admin sets visibility explicitly and `make doctor PROFILE=github`
+  proves an anonymous pull of the exact digests.
+- **What the bootstrap publishes (D-066).** It published untracked files to a repo anything in the cluster can read. It now
+  publishes the index only, and seeding is idempotent (the review was right: 31 duplicate webhooks had accumulated).
+- **Git feedback after a recovery (D-067).** Deduplicating on the revision hid a Healthy → Degraded → Healthy recovery.
+  Fixing it exposed two more bugs that silently disabled every notification: Argo CD parses templates and triggers as YAML
+  before rendering them (F45). `make validate` now parses them the same way, and live delivery to Gitea is proven.
+- **kind targeting and the toolchain (D-068).** The suites can no longer reach another cluster; the Gateway pool comes from
+  the real kind subnet; a cached CLI is bound to its lock entry and digest; the upgrade procedure keeps overrides in
+  effect and locks all five platforms.

@@ -1,0 +1,11 @@
+# Crossplane configuration (control-plane capability): functions, XRDs (contract v1 surface), compositions and RBAC.
+# compositionProvider selects which composition each XRD enforces: local (kind) | azure (AKS, Phase 4). Both
+# compositions exist for every XRD (CLAUDE.md invariant) and both are validated and render-tested by make validate.
+compositionProvider: ""
+functions:
+  goTemplating: xpkg.crossplane.io/crossplane-contrib/function-go-templating:v0.13.2
+  autoReady: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.7.3
+azure:
+  providers:
+    - xpkg.upbound.io/upbound/provider-family-azure:v2.8.4
+    - xpkg.upbound.io/upbound/provider-azure-dbforpostgresql:v2.8.4

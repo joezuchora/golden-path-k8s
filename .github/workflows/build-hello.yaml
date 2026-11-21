@@ -1,0 +1,99 @@
+# Builds the sample app through the platform pipeline (D-047). Runs on push (not pull_request), so the signer ref is a
+# real branch or tag: refs/heads/main and refs/tags/v1* everywhere; branch refs of this repo only on kind (D-055).
+name: build-hello
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths:
+      - apps/hello/**
+      - .github/workflows/build-hello.yaml
+      - .github/workflows/reusable-build-sign.yaml
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: build-hello-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - name: go vet + go test (in the pinned Chainguard builder)
+        run: |
+          builder="$(sed -n 's/^ARG BUILDER_IMAGE=//p' apps/hello/Dockerfile)"
+          docker run --rm -v "$PWD/apps/hello:/src" -w /src --entrypoint sh "$builder" -c 'go vet ./... && go test ./...'
+
+  build:
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/reusable-build-sign.yaml
+    with:
+      context: apps/hello
+      image-name: hello
+
+  unsigned-fixture:
+    # Test fixture for the image-admission fail case: the same app under the same registry prefix, pushed WITHOUT a
+    # signature or attestations. Admission must reject it (platform/policies/tests/image-admission, journey J2).
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, packages: write}
+    outputs:
+      image: ${{ steps.out.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/hello
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/${{ github.repository }}/hello-unsigned:${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      - id: out
+        env: {REPO: "${{ github.repository }}", DIGEST: "${{ steps.build.outputs.digest }}"}
+        run: echo "image=ghcr.io/${REPO,,}/hello-unsigned@$DIGEST" | tee -a "$GITHUB_OUTPUT"
+
+  admission-self-check:
+    # The image must pass the same admission policy the cluster enforces (team-a instance, kind profile). This proves
+    # the signature and attestation format end to end before any cluster sees the image (F41).
+    needs: [build, unsigned-fixture]
+    runs-on: ubuntu-24.04
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - name: Tools
+        run: bash tools/install.sh
+      - name: The signed image passes admission
+        env: {IMAGE: "${{ needs.build.outputs.image }}"}
+        run: bash scripts/admission-check.sh "$IMAGE" pass
+      - name: The unsigned fixture fails admission
+        env: {IMAGE: "${{ needs.unsigned-fixture.outputs.image }}"}
+        run: bash scripts/admission-check.sh "$IMAGE" fail
+      - name: Publish the digests for kind journeys and policy tests
+        env: {SIGNED: "${{ needs.build.outputs.image }}", UNSIGNED: "${{ needs.unsigned-fixture.outputs.image }}", SHA: "${{ github.sha }}"}
+        run: |
+          # The handoff to the journeys and policy tests (D-069): commit these lines to tests/e2e/lib/images.env by PR.
+          {
+            echo "HELLO_SIGNED=$SIGNED"
+            echo "HELLO_UNSIGNED=$UNSIGNED"
+            echo "HELLO_BUILT_FROM=$SHA"
+          } | tee images.env | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload the fixture handoff
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: {name: images-env, path: images.env}

@@ -1,0 +1,13 @@
+# The XR's tenant Namespace as tenancy renders it (ADR-0007 labels), supplied to the render as a required resource.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-team-a-dev
+  labels:
+    platform.example.org/team: team-a
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/env: dev
+    platform.example.org/tenant-scope: control-plane

@@ -1,0 +1,21 @@
+# The XR's tenant Namespace as tenancy renders it (ADR-0007 labels), supplied to the render as a required resource.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-team-a-dev
+  labels:
+    platform.example.org/team: team-a
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/env: dev
+    platform.example.org/tenant-scope: control-plane
+---
+# The platform's Azure settings (OpenTofu writes this in Phase 4). Test values only.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata: {name: azure-platform}
+data:
+  location: westeurope
+  tenantId: 00000000-0000-0000-0000-000000000000

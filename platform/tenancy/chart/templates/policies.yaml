@@ -1,0 +1,186 @@
+{{- if eq .Values.capability "workloads" }}
+{{- $a := .Values.admission }}
+{{- $t := .Values.team }}
+{{- $platformBranches := $a.acceptPlatformBranchRefs }}
+{{- /* Signer: the pinned reusable workflow at main or a v1 tag; on kind also this repo's branches (D-055). */}}
+{{- $signerRefs := ternary "(heads/.+|tags/v1(\\..*)?)" "(heads/main|tags/v1(\\..*)?)" $platformBranches }}
+{{- $signer := printf "^%s@refs/%s$" (regexQuoteMeta $a.signerWorkflow) $signerRefs }}
+{{- /* Caller: the team's allowlist from teams/<team>.yaml; refs are globs (* → .*). */}}
+{{- $callerConds := list }}
+{{- range .Values.callers }}
+{{- $repo := printf "https://github.com/%s" .repo }}
+{{- $refConds := list }}
+{{- range .refs }}
+{{- $re := regexReplaceAll "\\\\\\*" (regexQuoteMeta .) ".*" }}
+{{- $refConds = append $refConds (printf "w.ref.matches('^%s$')" $re) }}
+{{- end }}
+{{- if and $platformBranches (eq $repo $a.platformRepo) }}
+{{- $refConds = append $refConds "w.ref.startsWith('refs/heads/')" }}
+{{- end }}
+{{- $callerConds = append $callerConds (printf "(w.repository == '%s' && (%s))" $repo (join " || " $refConds)) }}
+{{- end }}
+{{- $callerExpr := join " || " $callerConds | default "false" }}
+{{- $bases := list }}
+{{- range $a.verifiedBases }}{{ $bases = append $bases (printf "'%s'" .digest) }}{{ end }}
+{{- $allowedCallers := list }}
+{{- range .Values.callers }}{{ $allowedCallers = append $allowedCallers (printf "%s@%s" .repo (join "|" .refs)) }}{{ end }}
+---
+# Image admission for team {{ $t }} (ADR-0005, D-026, D-055): signer + caller (from signed provenance) + verified base
+# digest, fail closed. Rendered from platform/tenancy/teams/{{ $t }}.yaml; changes are reviewed in the team's PR.
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: image-admission-{{ $t }}
+  labels: {platform.example.org/team: {{ $t }}, platform.example.org/policy-set: v1}
+  annotations:
+    platform.example.org/docs: {{ $a.docsBase }}/image-admission.md
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  autogen:
+    podControllers:
+      controllers: [deployments, statefulsets, daemonsets, jobs, cronjobs, replicasets]
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {platform.example.org/team: {{ $t }}}
+      matchExpressions:
+        - {key: platform.example.org/tenant-scope, operator: DoesNotExist}
+    resourceRules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods]}
+  matchImageReferences:
+    - glob: "{{ $a.imagePrefix }}*"
+  validationConfigurations:
+    mutateDigest: true
+    verifyDigest: true
+    required: true
+  attestors:
+    - name: pipeline
+      cosign:
+        keyless:
+          identities:
+            - subjectRegExp: {{ $signer | quote }}
+              issuer: {{ $a.oidcIssuer }}
+        ctlog: {url: {{ $a.rekorURL }}}
+  attestations:
+    - name: provenance
+      intoto: {type: https://slsa.dev/provenance/v1}
+    - name: base
+      intoto: {type: https://platform.example.org/attestations/base-image/v1}
+  validations:
+    - expression: >-
+        images.containers.map(i, verifyImageSignatures(i, [attestors.pipeline])).all(e, e > 0)
+      message: >-
+        image-admission: an image isn't signed by the platform pipeline. Why: only images built by
+        reusable-build-sign.yaml@v1 (main or a v1 tag) are admitted (fail closed). Fix: build the image with the platform
+        workflow and deploy it by digest. Docs: {{ $a.docsBase }}/image-admission.md
+    - expression: >-
+        images.containers.map(i, verifyAttestationSignatures(i, attestations.provenance, [attestors.pipeline])).all(e, e > 0)
+        && images.containers.map(i, extractPayload(i, attestations.provenance).predicate.buildDefinition.externalParameters.workflow).all(w, {{ $callerExpr }})
+      message: >-
+        image-admission: the image wasn't built from a repo and ref that team {{ $t }} allows. Why: the signer proves how
+        an image was built, the provenance proves for whom; any repo can call a public reusable workflow. Allowed:
+        {{ join ", " $allowedCallers }}. Fix: build from an allowed repo and ref, or add the caller in
+        platform/tenancy/teams/{{ $t }}.yaml by PR. Docs: {{ $a.docsBase }}/image-admission.md
+    - expression: >-
+        images.containers.map(i, verifyAttestationSignatures(i, attestations.base, [attestors.pipeline])).all(e, e > 0)
+        && images.containers.map(i, extractPayload(i, attestations.base).predicate.digest in [{{ join ", " $bases }}]).all(e, e)
+      message: >-
+        image-admission: the image's base isn't a Chainguard digest the platform has verified. Why: a cgr.dev prefix
+        doesn't prove the base; admission binds the exact digest the build used. Fix: rebase onto a digest listed in
+        platform/policies/verified-bases.yaml (Renovate opens these PRs) and rebuild. Docs: {{ $a.docsBase }}/image-admission.md
+---
+# Derived ownership labels (ADR-0007, D-017, D-028): copied from the team definition onto every app object that doesn't
+# set them. A conflicting value isn't overwritten; the ownership-labels-{{ $t }} ValidatingPolicy rejects it.
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: derive-labels-{{ $t }}
+  labels: {platform.example.org/team: {{ $t }}, platform.example.org/policy-set: v1}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {platform.example.org/team: {{ $t }}}
+    resourceRules:
+      - {apiGroups: [apps], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [deployments, statefulsets, daemonsets]}
+      - {apiGroups: [batch], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [jobs, cronjobs]}
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [services, serviceaccounts, persistentvolumeclaims]}
+      - {apiGroups: [gateway.networking.k8s.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [httproutes]}
+      - {apiGroups: [external-secrets.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [externalsecrets]}
+      - {apiGroups: [platform.example.org], apiVersions: [v1], operations: [CREATE, UPDATE], resources: ["*"]}
+  matchConditions:
+    - name: labels-absent
+      expression: "!has(object.metadata.labels) || !('platform.example.org/team' in object.metadata.labels)"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{metadata: Object.metadata{labels: {
+            'platform.example.org/team': '{{ $t }}',
+            'platform.example.org/owner': '{{ .Values.owner }}',
+            'platform.example.org/cost-center': '{{ .Values.costCenter }}',
+            'platform.example.org/data-classification': '{{ .Values.dataClassification }}'}}}
+---
+# Pod templates carry the same labels, so every Pod (and OpenCost, Phase 6) sees its owner.
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: derive-labels-pods-{{ $t }}
+  labels: {platform.example.org/team: {{ $t }}, platform.example.org/policy-set: v1}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {platform.example.org/team: {{ $t }}}
+    resourceRules:
+      - {apiGroups: [apps], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [deployments, statefulsets, daemonsets]}
+      - {apiGroups: [batch], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [jobs]}
+  matchConditions:
+    - name: template-labels-absent
+      expression: "!has(object.spec.template.metadata.labels) || !('platform.example.org/team' in object.spec.template.metadata.labels)"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{spec: Object.spec{template: Object.spec.template{metadata: Object.spec.template.metadata{labels: {
+            'platform.example.org/team': '{{ $t }}',
+            'platform.example.org/owner': '{{ .Values.owner }}',
+            'platform.example.org/cost-center': '{{ .Values.costCenter }}',
+            'platform.example.org/data-classification': '{{ .Values.dataClassification }}'}}}}}
+---
+# Reject overrides of derived labels (ADR-0007: if they disagree, team wins and the object is rejected).
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: ownership-labels-{{ $t }}
+  labels: {platform.example.org/team: {{ $t }}, platform.example.org/policy-set: v1}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: {platform.example.org/team: {{ $t }}}
+    resourceRules:
+      - {apiGroups: [apps], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [deployments, statefulsets, daemonsets]}
+      - {apiGroups: [batch], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [jobs, cronjobs]}
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [services, serviceaccounts, persistentvolumeclaims, pods]}
+      - {apiGroups: [gateway.networking.k8s.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [httproutes]}
+      - {apiGroups: [external-secrets.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [externalsecrets]}
+      - {apiGroups: [platform.example.org], apiVersions: [v1], operations: [CREATE, UPDATE], resources: ["*"]}
+  variables:
+    - name: want
+      expression: >-
+        {'platform.example.org/team': '{{ $t }}', 'platform.example.org/owner': '{{ .Values.owner }}',
+         'platform.example.org/cost-center': '{{ .Values.costCenter }}', 'platform.example.org/data-classification': '{{ .Values.dataClassification }}'}
+    - name: labels
+      expression: "has(object.metadata.labels) ? object.metadata.labels : {}"
+    - name: wrong
+      expression: "variables.want.filter(k, k in variables.labels && variables.labels[k] != variables.want[k])"
+  validations:
+    - expression: "size(variables.wrong) == 0"
+      messageExpression: >-
+        'ownership-labels: ' + object.kind + ' ' + object.metadata.name + ' overrides platform-derived label(s) ' +
+        variables.wrong.join(', ') + '. Why: team, owner, cost-center and data-classification come only from
+        platform/tenancy/teams/{{ $t }}.yaml (ADR-0007), so cost and paging reports stay correct. Fix: remove these labels
+        from your manifests or values; the platform adds them. Docs: {{ $a.docsBase }}/ownership-labels.md'
+{{- end }}

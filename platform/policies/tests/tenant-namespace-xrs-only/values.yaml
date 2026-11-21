@@ -1,0 +1,8 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Values
+metadata: {name: values}
+namespaceSelector:
+  - name: tenant-team-a-dev
+    labels:
+      platform.example.org/team: team-a
+      platform.example.org/tenant-scope: control-plane

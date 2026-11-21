@@ -4,7 +4,7 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run · P4 A safe way to ship
 - **CNCF capability domain(s):** Infrastructure services; Automation for delivering and verifying services
-- **Related decisions:** D-002, D-005, D-023
+- **Related decisions:** D-002, D-005, D-023, D-060
 
 ## Context
 Crossplane holds credentials that can create and delete cloud resources. Argo CD holds credentials that can

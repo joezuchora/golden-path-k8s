@@ -1,0 +1,11 @@
+# kind only: LoadBalancer IPs for Gateways, carved from the top of the kind Docker network. 172.18 is the common
+# default; infra/kind/bootstrap.sh rewrites the first two octets to the network's actual /16 before applying.
+# On AKS, the cloud load balancer assigns them.
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: kind-gateways
+spec:
+  blocks:
+    - start: 172.18.255.200
+      stop: 172.18.255.250

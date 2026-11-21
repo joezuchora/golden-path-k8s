@@ -1,0 +1,39 @@
+{{- include "gs.validate" . }}
+# The app's own ServiceAccount: the identity that ADR-0008 federates on AKS (system:serviceaccount:<team>-<env>:<app>).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.app }}
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+{{ include "gs.deployment" (dict "root" . "name" .Values.app "track" "stable" "image" .Values.image "replicas" .Values.replicas) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app }}
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+spec:
+  selector:
+    platform.example.org/app: {{ .Values.app }}
+    platform.example.org/track: stable
+  ports: [{name: http, port: 80, targetPort: http}]
+{{- if .Values.canary.enabled }}
+---
+{{ include "gs.deployment" (dict "root" . "name" (printf "%s-canary" .Values.app) "track" "canary" "image" .Values.canary.image "replicas" 1) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app }}-canary
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+spec:
+  selector:
+    platform.example.org/app: {{ .Values.app }}
+    platform.example.org/track: canary
+  ports: [{name: http, port: 80, targetPort: http}]
+{{- end }}

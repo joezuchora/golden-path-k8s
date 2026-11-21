@@ -1,0 +1,21 @@
+# Kyverno needs read access to every kind the policy set matches, to compute PolicyReports (contract P3) and run
+# background scans. Aggregated into Kyverno's own controller roles.
+{{- range $c := list "admission-controller" "reports-controller" "background-controller" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:policy-set-v1:{{ $c }}
+  labels:
+    rbac.kyverno.io/aggregate-to-{{ $c }}: "true"
+rules:
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes]
+    verbs: [get, list, watch]
+  - apiGroups: [external-secrets.io]
+    resources: [externalsecrets]
+    verbs: [get, list, watch]
+  - apiGroups: [platform.example.org]
+    resources: ["*"]
+    verbs: [get, list, watch]
+{{- end }}

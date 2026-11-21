@@ -1,0 +1,9 @@
+apiVersion: v2
+name: crossplane
+description: Platform component wrapper (placement D-023). The dependency version must equal tools/versions.env.
+type: application
+version: 0.1.0
+dependencies:
+  - name: crossplane
+    repository: https://charts.crossplane.io/stable
+    version: 2.4.3

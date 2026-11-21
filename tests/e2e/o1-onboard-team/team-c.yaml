@@ -1,0 +1,12 @@
+team: team-c
+owner: team-c-oncall
+costCenter: cc-1003
+dataClassification: internal
+envs: [dev]
+groups:
+  developers: team-c
+deployRepo: team-c/deploy
+callers:
+  - repo: joezuchora/golden-path-k8s
+    refs: [refs/heads/main, refs/tags/v*]
+quota: {cpu: "2", memory: 4Gi, pods: "20"}

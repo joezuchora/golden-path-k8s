@@ -1,0 +1,8 @@
+# The platform Gateway every app's HTTPRoute attaches to (contract P2). Apps reference only the fixed name
+# platform-gateway/platform, so golden-service renders identically in every profile; the class differs by profile.
+gatewayClassName: ""          # set per profile: cilium (kind, byo), eg (managed)
+domain: ""                    # wildcard apps domain, per profile
+issuer:
+  kind: ClusterIssuer
+  name: platform-ca           # kind: self-signed CA (D-051); AKS: ACME (Phase 4)
+selfSignedCA: false

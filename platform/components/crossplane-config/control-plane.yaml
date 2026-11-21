@@ -1,0 +1,2 @@
+component: crossplane-config
+namespace: crossplane-system

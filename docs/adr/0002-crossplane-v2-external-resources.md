@@ -4,12 +4,14 @@
 - **Date:** 2026-11-20
 - **Contract promise:** P1 A place to run
 - **CNCF capability domain(s):** Infrastructure services; Data services; APIs for automatically provisioning capabilities
-- **Related decisions:** D-003 (Revisited), D-024, D-002
+- **Related decisions:** D-003 (Revisited), D-024, D-002, D-040, D-041, D-053, D-064
 
 ## Context
 App teams need databases, caches and networks without filing tickets and without holding cloud credentials.
 Crossplane v2.4 (F4) makes XRs and MRs namespaced, removes claims for v2 XRs, removes XR connection details and
-native patch-and-transform (P&T), and notes that namespaced Azure MRs are "still being updated". The AKS blog
+native patch-and-transform (P&T). Its note on Azure now reads "Maintainers are actively working to update managed
+resources for other systems including Azure" (F4, re-checked for D-041); the namespaced Azure APIs already exist in the
+provider (F12). The AKS blog
 marks "You can request an environment" as "Not built in" on AKS and lists "Crossplane with OpenTofu, or kro with
 Azure Service Operator (ASO)" as the bring-your-own path (F16). It says kro is "still pre-1.0" (F17).
 
@@ -45,7 +47,7 @@ Crossplane v2:
   so the earlier `LegacyCluster` fallback was invalid and has been removed. The `provider-upjet-azure` source has
   namespaced `v1beta1` APIs for everything the first compositions need: `dbforpostgresql` (`FlexibleServer`,
   `FlexibleServerDatabase`, `FlexibleServerFirewallRule`), `azure` (`ResourceGroup`), `keyvault` (`Vault`, `Secret`), and
-  `cache` (Redis, for the catalog-expansion example; F12). Pin the provider version and run `crossplane beta validate`
+  `cache` (Redis, for the catalog-expansion example; F12). Pin the provider version and run `crossplane resource validate` (D-040)
   against the pinned CRDs before writing a composition.
 - **"Ready" means the app can use it.** A dependency counts as delivered only when the consuming app connects with
   the brokered credential, survives a credential rotation, and leaves no database or brokered secret behind after deletion.
@@ -56,7 +58,7 @@ Crossplane v2:
 - Escape hatch: a team can request a new composition variant or an observe-only import of an existing resource.
 
 ## Fitness check
-- `crossplane beta validate` in CI.
+- `crossplane resource validate` and `crossplane composition render` golden files in `make validate` and CI (D-040).
 - A Chainsaw e2e test runs the full lifecycle:
   1. Create the XR and wait for `Ready=True`.
   2. Check that the `ExternalSecret` has synced into the workload namespace.

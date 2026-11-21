@@ -1,0 +1,18 @@
+# Cilium values shared by cilium_mode=byo and kind (ADR-0003). Not used in cilium_mode=managed, where AKS owns Cilium
+# and only label exclusion can be changed (F3).
+kubeProxyReplacement: true        # required by the Cilium Gateway API (F30)
+l7Proxy: true                     # required by the Cilium Gateway API (F30)
+gatewayAPI:
+  enabled: true
+ipam:
+  mode: kubernetes
+bpf:
+  masquerade: true                # eBPF host routing needs eBPF masquerading (F7)
+hubble:
+  enabled: true
+  relay:
+    enabled: false                # Hubble UI and relay are out of Phase 3 on kind (D-051)
+  ui:
+    enabled: false
+operator:
+  replicas: 1
