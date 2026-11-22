@@ -61,6 +61,8 @@ they never define it. Cite each source only for what it actually says.
   the primary checkout; other agents share it. `make hooks` enables the hooks that enforce this.
 - Shared local resources (the kind cluster `golden-path`, its Gitea) belong to one session at a time; coordinate before
   `make kind-down`/`kind-up`.
+- `main` is protected by a ruleset (D-092): changes land only through a PR, after `static` and `kind-e2e` pass. No direct
+  or force pushes. Auto-merge is allowed per PR; never enable it on a Renovate PR.
 
 ## Commands
 <!-- Planned targets; none exist yet. Replace with verified commands as each phase lands. -->
