@@ -76,6 +76,11 @@ describe('OfferingCards', () => {
     expect(card('Unpriced option').getByText(/No cost estimate is available/)).toBeInTheDocument();
   });
 
+  it('says when availability data is missing instead of showing a blank', () => {
+    render(<OfferingCards offerings={[{ ...cnpg, title: 'No availability', availability: '' }]} onSelect={() => {}} />);
+    expect(card('No availability').getByText(/Availability estimate unavailable/)).toBeInTheDocument();
+  });
+
   it('selects an option by id', () => {
     const onSelect = jest.fn();
     render(<OfferingCards offerings={[horizon, cnpg]} selected="azure-horizondb" onSelect={onSelect} />);
@@ -112,6 +117,8 @@ describe('OfferingPicker field', () => {
       </TestApiProvider>,
     );
     await waitFor(() => expect(screen.getAllByRole('radio')).toHaveLength(2));
+    expect(screen.queryByText(/meet the same availability target/)).not.toBeInTheDocument();
+    expect(screen.getByText(/neither is qualified on this platform yet/)).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith('http://localhost:7007/api/dependency-catalog/offerings?capability=database');
     fireEvent.click(screen.getByRole('radio', { name: /Azure HorizonDB/ }));
     expect(onChange).toHaveBeenCalledWith('azure-horizondb');

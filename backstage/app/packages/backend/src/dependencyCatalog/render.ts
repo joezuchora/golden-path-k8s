@@ -1,4 +1,4 @@
-import { DNS_LABEL } from './resolve';
+import { isSafeLabel } from './resolve';
 import { INPUT_FIELDS, RenderedRequest, ResolvedRequest } from './model';
 
 /**
@@ -9,7 +9,7 @@ import { INPUT_FIELDS, RenderedRequest, ResolvedRequest } from './model';
 export function renderRequest(resolved: ResolvedRequest): RenderedRequest {
   const { input } = resolved;
   for (const field of INPUT_FIELDS) {
-    if (!DNS_LABEL.test(input[field])) throw new Error(`refusing to render: ${field} is not a DNS label`);
+    if (!isSafeLabel(input[field])) throw new Error(`refusing to render: ${field} is not a YAML-safe DNS label`);
   }
   return {
     path: `dependency-requests/${input.environment}/${input.service}/${input.name}.yaml`,

@@ -8,8 +8,19 @@ import {
   ResolvedRequest,
 } from './model';
 
-/** A lowercase DNS label: safe as a single path component, up to 63 characters. */
-export const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
+/** A lowercase RFC 1035 label (starts with a letter): safe as a path component, up to 63 characters. */
+export const DNS_LABEL = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/;
+
+/** Plain scalars that YAML 1.1 or 1.2 reads as booleans or null rather than strings. */
+const YAML_KEYWORDS = new Set(['y', 'n', 'yes', 'no', 'on', 'off', 'true', 'false', 'null']);
+
+/**
+ * True when the value is safe both as a path component and as an unquoted YAML string: an RFC 1035 label (so never a
+ * number, hex or exponent literal) that is not a YAML boolean or null keyword.
+ */
+export function isSafeLabel(value: unknown): value is string {
+  return typeof value === 'string' && DNS_LABEL.test(value) && !YAML_KEYWORDS.has(value);
+}
 
 /** Fields the platform derives. Naming them in a request is an override attempt, reported as such. */
 const PLATFORM_OWNED = /^(owner|ownerref|team|deployrepo|repo|repository|repourl|subscription|subscriptionid|resourcegroup|destination|destinationref|cluster|clusterid|workloadgroup|credentials?|token|secret|password|identity|caller)$/i;
@@ -35,10 +46,10 @@ export function parseInput(raw: unknown): DependencyInput {
   }
   for (const field of INPUT_FIELDS) {
     const value = record[field];
-    if (typeof value !== 'string' || !DNS_LABEL.test(value)) {
+    if (!isSafeLabel(value)) {
       throw new DependencyRequestError(
         'invalid-input',
-        `Field "${field}" is ${JSON.stringify(value)}; it must be a lowercase DNS label (a-z, 0-9, '-', at most 63 characters) because it becomes part of the request path. Use a name like "primary-db".`,
+        `Field "${field}" is ${JSON.stringify(value)}; it must be a lowercase DNS label that starts with a letter (a-z, 0-9, '-', at most 63 characters) and is not a YAML keyword such as "true", "no" or "null", because it becomes part of the request path and file. Use a name like "primary-db".`,
       );
     }
   }

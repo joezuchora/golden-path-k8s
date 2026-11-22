@@ -23,16 +23,28 @@ function user(name: string, team: string): Entity {
   };
 }
 
-function service(name: string, owner: string): Entity {
+const REVIEWED = path.resolve('/reviewed/catalog/demo-entities.yaml');
+
+function service(name: string, owner: string, origin = `file:${REVIEWED}`): Entity {
   return {
     apiVersion: 'backstage.io/v1alpha1',
     kind: 'Component',
-    metadata: { name, namespace: 'default', annotations: { 'platform.example.org/environments': 'dev' } },
+    metadata: {
+      name,
+      namespace: 'default',
+      annotations: { 'platform.example.org/environments': 'dev', 'backstage.io/managed-by-origin-location': origin },
+    },
     spec: { type: 'service', owner, lifecycle: 'experimental' },
   };
 }
 
-const entities = [user('alice', 'team-a'), user('bob', 'team-b'), service('hello', 'team-a'), service('inventory', 'team-b')];
+const entities = [
+  user('alice', 'team-a'),
+  user('bob', 'team-b'),
+  service('hello', 'team-a'),
+  service('inventory', 'team-b'),
+  service('unreviewed', 'team-a', 'url:https://github.com/someone/repo/blob/main/catalog-info.yaml'),
+];
 
 const request = { service: 'hello', environment: 'dev', name: 'primary-db', offering: 'azure-horizondb' };
 const expectedPath = 'dependency-requests/dev/hello/primary-db.yaml';
@@ -56,6 +68,7 @@ function action(profile: 'sandbox' | 'enterprise' = 'sandbox') {
     teams,
     profile,
     capability: 'database',
+    reviewedServiceFiles: [REVIEWED],
   });
 }
 
@@ -115,6 +128,11 @@ describe('dependency:renderRequest', () => {
     ['credentials', 'hunter2'],
   ])('rejects a form override of %s from an authorized initiator and writes nothing', async (field, value) => {
     await expect(run({ ...request, [field]: value })).rejects.toBeInstanceOf(DependencyRequestError);
+    expect(listFiles(workspace.path)).toEqual([]);
+  });
+
+  it('treats a service registered outside the reviewed catalog files as unknown and writes nothing', async () => {
+    await expect(run({ ...request, service: 'unreviewed' })).rejects.toMatchObject({ code: 'unknown-service' });
     expect(listFiles(workspace.path)).toEqual([]);
   });
 

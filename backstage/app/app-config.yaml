@@ -196,6 +196,8 @@ catalog:
 # per-team landing-zone layout. The request file is identical in both; only the backend's resolved destination differs.
 dependencyCatalog:
   placementProfile: sandbox
+  # Only services from these reviewed files can request dependencies; runtime-registered Components are ignored.
+  reviewedServiceFiles: [catalog/demo-entities.yaml]
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options

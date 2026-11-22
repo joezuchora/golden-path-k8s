@@ -35,9 +35,9 @@ spec:
         name:
           title: Dependency name
           type: string
-          description: Lowercase DNS label, up to 63 characters. Becomes the request file name.
+          description: Lowercase DNS label starting with a letter, up to 63 characters. Becomes the request file name.
           default: primary-db
-          pattern: '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'
+          pattern: '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
         offering:
           title: Offering
           type: string

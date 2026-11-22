@@ -68,7 +68,7 @@ export function OfferingCards({ offerings, selected, onSelect }: OfferingCardsPr
                   <strong>Operated by:</strong> {o.operatingOwner}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  <strong>Availability:</strong> {o.availability}
+                  <strong>Availability:</strong> {o.availability?.trim() || 'Availability estimate unavailable.'}
                 </Typography>
                 <CostSection offering={o} />
               </CardContent>
@@ -110,8 +110,8 @@ export function OfferingPicker(props: FieldExtensionComponentProps<string, { cap
         {required ? ' *' : ''}
       </Typography>
       <Typography variant="body2" color="textSecondary" gutterBottom>
-        Both options meet the same availability target. The platform resolves where it runs from approved placement;
-        you only choose the offering.
+        Both options are designed to the same availability target; neither is qualified on this platform yet. The
+        platform resolves where it runs from approved placement; you only choose the offering.
       </Typography>
       {error && <FormHelperText error>Could not load the approved offerings: {error}</FormHelperText>}
       {!error && !offerings && <Typography variant="body2">Loading approved offerings…</Typography>}

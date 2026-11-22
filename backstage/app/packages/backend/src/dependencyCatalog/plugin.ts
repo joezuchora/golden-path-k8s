@@ -5,7 +5,7 @@ import { InputError, NotFoundError } from '@backstage/errors';
 import { catalogServiceRef } from '@backstage/plugin-catalog-node';
 import { loadCatalogData, loadTeams, servicesFromEntities } from './load';
 import { Capability } from './model';
-import { defaultDataPaths } from './paths';
+import { defaultDataPaths, reviewedServiceFiles } from './paths';
 
 const CAPABILITIES: readonly Capability[] = ['database', 'cache'];
 
@@ -17,11 +17,17 @@ export const dependencyCatalogPlugin = createBackendPlugin({
   pluginId: 'dependency-catalog',
   register(env) {
     env.registerInit({
-      deps: { http: coreServices.httpRouter, auth: coreServices.auth, catalog: catalogServiceRef },
-      async init({ http, auth, catalog }) {
+      deps: {
+        http: coreServices.httpRouter,
+        auth: coreServices.auth,
+        catalog: catalogServiceRef,
+        config: coreServices.rootConfig,
+      },
+      async init({ http, auth, catalog, config }) {
         const paths = defaultDataPaths();
         const data = loadCatalogData(paths.fixtures);
         const teams = loadTeams(paths.teams);
+        const reviewed = reviewedServiceFiles(config, paths);
         const router = Router();
 
         router.get('/offerings', async (req, res) => {
@@ -33,9 +39,15 @@ export const dependencyCatalogPlugin = createBackendPlugin({
         });
 
         router.get('/environments', async (req, res) => {
-          const ref = parseEntityRef(String(req.query.service ?? ''), { defaultKind: 'component', defaultNamespace: 'default' });
+          if (typeof req.query.service !== 'string' || !req.query.service) throw new InputError('service is required');
+          let ref;
+          try {
+            ref = parseEntityRef(req.query.service, { defaultKind: 'component', defaultNamespace: 'default' });
+          } catch {
+            throw new InputError(`service ${req.query.service} is not an entity reference`);
+          }
           const entity = await catalog.getEntityByRef(ref, { credentials: await auth.getOwnServiceCredentials() });
-          const service = entity && servicesFromEntities([entity])[0];
+          const service = entity && servicesFromEntities([entity], reviewed)[0];
           if (!service) throw new NotFoundError(`service ${req.query.service} is not in the catalog`);
           const team = teams.find(t => t.ref === service.ownerRef);
           res.json({ environments: service.environments.filter(e => team?.environments.includes(e)) });

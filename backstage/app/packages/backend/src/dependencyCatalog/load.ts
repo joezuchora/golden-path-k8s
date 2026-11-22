@@ -14,6 +14,21 @@ import {
 
 /** Annotation on a service Component listing the environments it declares, comma-separated. */
 export const ENVIRONMENTS_ANNOTATION = 'platform.example.org/environments';
+/** Set by the catalog: the location an entity was ingested from. */
+export const ORIGIN_ANNOTATION = 'backstage.io/managed-by-origin-location';
+
+function normalizeFile(p: string): string {
+  const abs = path.resolve(p).split(path.sep).join('/');
+  return process.platform === 'win32' ? abs.toLowerCase() : abs;
+}
+
+/** True when the entity came from one of the reviewed catalog files (a `file:` origin), not a runtime registration. */
+export function isFromReviewedFile(e: Entity, reviewedFiles: readonly string[]): boolean {
+  const origin = e.metadata.annotations?.[ORIGIN_ANNOTATION];
+  if (!origin?.startsWith('file:')) return false;
+  const file = normalizeFile(origin.slice('file:'.length));
+  return reviewedFiles.some(r => normalizeFile(r) === file);
+}
 
 export type CatalogData = {
   offerings: readonly Offering[];
@@ -38,12 +53,29 @@ export function loadCatalogData(file: string): CatalogData {
     }
     if (o.status !== 'preview') fail(file, `offering ${o.id}: only status "preview" exists in Milestone 1`);
   }
-  return { offerings, profiles: doc.profiles ?? {} };
+  const profiles = doc.profiles ?? {};
+  for (const [name, profile] of Object.entries<any>(profiles)) {
+    if (!Array.isArray(profile?.destinations) || !Array.isArray(profile?.placements)) {
+      fail(file, `profile ${name} needs destinations and placements lists`);
+    }
+    const refs = new Set<string>();
+    for (const d of profile.destinations as Destination[]) {
+      if (refs.has(d.ref)) fail(file, `profile ${name}: duplicate destination ${d.ref}`);
+      refs.add(d.ref);
+    }
+    for (const p of profile.placements as Placement[]) {
+      if (!ids.has(p.offering)) fail(file, `profile ${name}: placement names unknown offering ${p.offering}`);
+      if (!refs.has(p.destinationRef)) {
+        fail(file, `profile ${name}: placement names unknown destination ${p.destinationRef}`);
+      }
+    }
+  }
+  return { offerings, profiles };
 }
 
 /** Reads each team's group, deploy repository and environments from platform/tenancy/teams/<team>.yaml. */
 export function loadTeams(dir: string): Team[] {
-  return fs
+  const teams = fs
     .readdirSync(dir)
     .filter(f => f.endsWith('.yaml'))
     .sort()
@@ -59,12 +91,22 @@ export function loadTeams(dir: string): Team[] {
         environments: t.envs.map(String),
       };
     });
+  const seen = new Set<string>();
+  for (const t of teams) {
+    if (seen.has(t.ref)) fail(dir, `duplicate team ${t.ref}: one team file per team`);
+    seen.add(t.ref);
+  }
+  return teams;
 }
 
-/** Projects service Components (spec.type service, with the environments annotation) into catalog services. */
-export function servicesFromEntities(entities: readonly Entity[]): Service[] {
+/**
+ * Projects service Components (spec.type service, with the environments annotation) into catalog services. Only
+ * entities ingested from the reviewed catalog files count; a Component registered at runtime is ignored.
+ */
+export function servicesFromEntities(entities: readonly Entity[], reviewedFiles: readonly string[]): Service[] {
   const services: Service[] = [];
   for (const e of entities) {
+    if (!isFromReviewedFile(e, reviewedFiles)) continue;
     const envs = e.metadata.annotations?.[ENVIRONMENTS_ANNOTATION];
     const owner = e.spec?.owner;
     if (e.kind !== 'Component' || e.spec?.type !== 'service' || !envs || typeof owner !== 'string') continue;

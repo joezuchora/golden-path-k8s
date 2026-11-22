@@ -8,6 +8,7 @@
 
 import { createBackend } from '@backstage/backend-defaults';
 import { dependencyCatalogPlugin } from './dependencyCatalog';
+import { demoOnlyFeatures } from './features';
 
 const backend = createBackend();
 
@@ -31,7 +32,8 @@ backend.add(import('@backstage/plugin-techdocs-backend'));
 // auth plugin
 backend.add(import('@backstage/plugin-auth-backend'));
 // See https://backstage.io/docs/backend-system/building-backends/migrating#the-auth-plugin
-backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
+// Guest sign-in (the local demo identity) only under NODE_ENV=development; see ./features.ts and D-101.
+for (const feature of demoOnlyFeatures(process.env.NODE_ENV)) backend.add(feature);
 // See https://backstage.io/docs/auth/guest/provider
 
 // catalog plugin

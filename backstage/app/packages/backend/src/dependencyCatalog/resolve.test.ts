@@ -206,6 +206,16 @@ describe('resolveRequest: strict input', () => {
     expect(e.code).toBe('invalid-input');
   });
 
+  it.each(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n', '123', '1e3', '0x1f', '07'])(
+    'rejects name=%j, which YAML would not read back as a string',
+    value => {
+      const e = rejection(() =>
+        resolveRequest({ ...helloRequest('azure-horizondb'), name: value }, teamA, config, 'database'),
+      );
+      expect(e.code).toBe('invalid-input');
+    },
+  );
+
   it('accepts a 63-character name', () => {
     const r = resolveRequest({ ...helloRequest('azure-horizondb'), name: 'a'.repeat(63) }, teamA, config, 'database');
     expect(r.input.name).toHaveLength(63);

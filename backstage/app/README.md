@@ -28,7 +28,9 @@ yarn start                  # frontend http://localhost:3000, backend http://loc
 Sign in with **Enter** (the local guest provider). The demo identity is `user:default/alice`, a member of
 `group:default/team-a`, which owns `hello`. Team B's demo user is `bob` (owns `inventory`): put
 `auth.providers.guest.userEntityRef: user:default/bob` in `app-config.local.yaml` (gitignored) and restart. The guest
-provider only works under `NODE_ENV=development`, and `app-config.production.yaml` has no provider and no demo data.
+module is registered only under `NODE_ENV=development` (`packages/backend/src/features.ts`). Backstage deep-merges
+`app-config.production.yaml` over `app-config.yaml`, so the guest settings still appear in the merged config, but no
+deployment loads the module that reads them.
 
 ## Local data
 
@@ -72,9 +74,11 @@ To see a denial, start over and pick Team B's `inventory`. The task fails with "
 1. Reads the initiator from the task's backend credentials, never from the form, and reads that user's team
    memberships from the catalog.
 2. Accepts only `service`, `environment`, `name` and `offering`. It rejects any other field, including `owner`,
-   `deployRepo`, `subscriptionId`, `credentials` and `token`, and any value that isn't a lowercase DNS label of at
-   most 63 characters.
-3. Checks that the caller's team owns the service, the environment is approved for both the service and the team, and
+   `deployRepo`, `subscriptionId`, `credentials` and `token`. Each value must be a lowercase DNS label of at most 63
+   characters that starts with a letter and isn't a YAML keyword such as `true`, `no` or `null`, so it reads back as
+   a string.
+3. Counts only services from the reviewed catalog files (`dependencyCatalog.reviewedServiceFiles`); a Component
+   registered at runtime is treated as unknown. Checks that the caller's team owns the service, the environment is approved for both the service and the team, and
    the offering exists and is a database.
 4. Resolves exactly one platform placement for (team, environment, offering). It fails closed when the placement is
    missing or ambiguous, names an unknown destination, or names a destination not approved for that team.

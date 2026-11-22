@@ -7,7 +7,7 @@ import { createTemplateAction, scaffolderActionsExtensionPoint } from '@backstag
 import { resolveSafeChildPath } from '@backstage/backend-plugin-api';
 import { buildCatalogConfig, CatalogData, loadCatalogData, loadTeams, servicesFromEntities } from './load';
 import { Capability, Caller, DependencyRequestError, PlacementProfileName, Team } from './model';
-import { defaultDataPaths } from './paths';
+import { defaultDataPaths, reviewedServiceFiles } from './paths';
 import { renderRequest } from './render';
 import { resolveRequest } from './resolve';
 
@@ -19,6 +19,8 @@ export type RenderRequestActionOptions = {
   profile: PlacementProfileName;
   /** Fixed by registration, so a database template cannot submit another kind of offering. */
   capability: Capability;
+  /** Catalog files whose service Components count as reviewed metadata. */
+  reviewedServiceFiles: readonly string[];
 };
 
 const unauthorized = (message: string) => new DependencyRequestError('unauthorized', message);
@@ -44,7 +46,7 @@ function normalizeService(request: unknown): unknown {
 }
 
 export function createRenderRequestAction(options: RenderRequestActionOptions) {
-  const { auth, catalog, data, teams, profile, capability } = options;
+  const { auth, catalog, data, teams, profile, capability, reviewedServiceFiles } = options;
   return createTemplateAction({
     id: 'dependency:renderRequest',
     description:
@@ -83,7 +85,7 @@ export function createRenderRequestAction(options: RenderRequestActionOptions) {
         { filter: { kind: 'Component', 'spec.type': 'service' } },
         { credentials },
       );
-      const config = buildCatalogConfig(data, profile, teams, servicesFromEntities(items));
+      const config = buildCatalogConfig(data, profile, teams, servicesFromEntities(items, reviewedServiceFiles));
 
       const resolved = resolveRequest(normalizeService(ctx.input.request), caller, config, capability);
       const rendered = renderRequest(resolved);
@@ -126,7 +128,15 @@ export const dependencyCatalogScaffolderModule = createBackendModule({
         const data = loadCatalogData(paths.fixtures);
         buildCatalogConfig(data, profile, [], []); // fail at startup on an unknown profile
         scaffolder.addActions(
-          createRenderRequestAction({ auth, catalog, data, teams: loadTeams(paths.teams), profile, capability: 'database' }),
+          createRenderRequestAction({
+            auth,
+            catalog,
+            data,
+            teams: loadTeams(paths.teams),
+            profile,
+            capability: 'database',
+            reviewedServiceFiles: reviewedServiceFiles(config, paths),
+          }),
         );
       },
     });

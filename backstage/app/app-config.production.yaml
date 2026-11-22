@@ -29,8 +29,9 @@ backend:
       #     $file: <file-path>/ca/server.crt
 
 auth:
-  # No sign-in provider yet: the guest demo identity is local-only (app-config.yaml). A deployment adds a real
-  # identity provider in Phase 5 (D-101).
+  # No sign-in provider yet; a deployment adds a real identity provider in Phase 5 (D-101). Config objects deep-merge, so
+  # app-config.yaml's guest settings remain in the merged config, but the backend registers the guest module only under
+  # NODE_ENV=development (packages/backend/src/features.ts).
   providers: {}
 
 catalog:
