@@ -31,6 +31,7 @@ shape, with a D- or F-entry.
 | Each `kind-up` adds another Gitea webhook | Gitea inserts a new hook on every create call | The seed looks hooks up first and removes duplicates | D-066 |
 | A local file you didn't mean to share appears in the in-cluster repo | Older bootstrap versions published untracked files | Only files Git tracks are published; `git add` a new file to include it | D-066 |
 | `make kind-up` fails after 10 minutes with `Deployment/argocd/argocd-redis not ready ... Available: 0/1` on a fresh CI runner, and a re-run passes | Likely a stalled anonymous image pull: the chart's default Redis image was the platform's only image from ECR Public | Redis is pinned to a Chainguard image by digest. If it recurs, the CI diagnostics step prints the pod's events | D-090 |
+| `make kind-up` fails after 15 minutes with `crossplane-config-in-cluster=Synced/Progressing`, and a re-run passes | Crossplane's pod timed out fetching its function packages (`context deadline exceeded` on `https://xpkg.crossplane.io/v2/`) while the node and runner could reach xpkg; cause not proven | Re-run. The functions are digest-pinned, and on failure CI prints `tests/e2e/lib/registry-probe.sh` (package conditions; xpkg and ghcr.io timed from the pod and node networks). Run it locally with `KUBECONFIG=.kube/golden-path.yaml bash tests/e2e/lib/registry-probe.sh` | D-093 |
 
 ## Policy and supply chain (Kyverno, cosign, GHCR)
 
