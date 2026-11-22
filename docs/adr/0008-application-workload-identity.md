@@ -51,6 +51,8 @@ for every cluster in the env's workload group (D-079).
 platform job, running as it, gives each app's UAMI a least-privilege database role, following Microsoft's guidance not to
 use the Entra administrator for regular operations (F61). The job's identity and network path are designed with the
 `AppIdentity` XRD; the federated-credential design above is unchanged.
+**Implementation:** [ADR-0013](0013-appidentity-and-tenant-scoped-provider-identities.md) (Proposed) designs the
+`AppIdentity` XRD, the per-tenant database-admin identity and role-sync Job, and per-tenant provider identities (D-099).
 
 ## Consequences
 - Positive: no stored secret for Azure-native dependencies; per-app blast radius; identity lifecycle tied to the app.
