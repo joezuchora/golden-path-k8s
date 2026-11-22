@@ -31,6 +31,7 @@ approved separately and is done only when every exit criterion passes. Gaps the 
 | Backstage with per-user Kubernetes access on AKS and its cross-tenant deny test | A backend is exposed only after its deny test passes | D-025 |
 | Go, Python and .NET templates that produce a service passing the Phase 3 journeys | Golden paths for languages other than the sample app | Decision Log, phase 5 |
 | Onboard a new team end to end without operator helpers (repo access, review, merge, first HTTPS response) | The O1 suite still uses refresh and seeding helpers | [platform review](docs/platform-review.md) |
+| Backstage database request for a service: Azure HorizonDB or PostgreSQL on AKS with CloudNativePG | Teams choose an approved offering and submit a Git PR with the service owner | [catalog design draft](docs/superpowers/specs/2026-11-22-aks-app-identity-design.md#database-catalog) |
 
 ## Phase 6: CI, supply chain and measurement
 
@@ -52,9 +53,15 @@ approved separately and is done only when every exit criterion passes. Gaps the 
 | One generic image-admission policy that reads namespace data, instead of per-team instances | Hundreds of teams | D-055 |
 | KCL instead of go-templating for compositions *(help wanted: a spike)* | Composition logic grows typed or complex | D-044 |
 | Multiple databases per app, with named bindings | A team needs two | D-071 |
+| Cache request: one cache per service and environment, with Azure Managed Redis as the production default or platform-managed Valkey on AKS | Catalog shows the monthly estimate, availability, and operating owner. Prove denied access from another service and correct application behavior on a cold cache before enabling requests | [Developer Contract](docs/developer-contract.md#p1-a-place-to-run) |
+| Object storage request: Azure Blob Storage with approved access tiers or S3-compatible buckets through Rook-managed Ceph | Catalog request flow is proven and the backend passes private access, cross-tenant denial and recovery tests | [storage catalog design draft](docs/superpowers/specs/2026-11-22-aks-app-identity-design.md#follow-on-catalog-offerings-for-storage) |
+| Shared file storage request: Azure Files or CephFS on the workload cluster | A service needs a shared mount and the backend passes the same access and recovery tests | [storage catalog design draft](docs/superpowers/specs/2026-11-22-aks-app-identity-design.md#follow-on-catalog-offerings-for-storage) |
+| Job queue request: share a broker per team and environment, with service-owned queues, dead-letter queues, and scoped producer and consumer access. Use RabbitMQ on AKS and evaluate Service Bus Premium for the managed offering | After v1, qualify RabbitMQ on the target AKS version. Prove safe redelivery, dead-letter handling, and denied access from another service. Show allocated cost and added capacity in the catalog. Offer a dedicated broker when a service needs a separate failure boundary, capacity, or encryption key | D-033 |
+| Event streaming request: Azure Event Hubs Standard or Kafka on AKS with Strimzi, with service-owned streams and separate producer and consumer access | After v1, prove independent consumer replay and unauthorized access denial. Show allocated throughput, retention and incremental capacity costs | D-033 |
+| Enterprise subscription placement and Terraform vending | Adopt existing landing zones first. Add vending when teams need automated subscription creation and handoff at scale | [ADR-0013](docs/adr/0013-subscription-placement-and-vending.md) |
 | Workload profiles beyond a stateless HTTP service (slow-starting inference, queue jobs, stateful services) | A team asks; each profile states its lifecycle, identity, diagnostics and support | [contract gaps](docs/developer-contract.md#stated-gaps-in-v1) |
 | Brownfield adoption: inventory, ownership handoff, Audit before enforcement, observe-only import, restore drill | An existing workload moves onto the platform | [contract gaps](docs/developer-contract.md#stated-gaps-in-v1) |
 | Rollback journey: revert to the previous digest through Git, with a retention window for digests and attestations | Before production promotion | [platform review](docs/platform-review.md) |
 | Automated progressive delivery (analysis and automatic rollback) | Out of contract v1 | D-032 |
-| Development environments; messaging and events | Deferred from v1 | D-033 |
+| Development environments | Deferred from v1 | D-033 |
 | An end-to-end run of `make kind-up` and the suites on macOS (Apple Silicon and Intel) and on Linux arm64 *(help wanted)* | Windows (Docker Desktop) and Linux amd64 (GitHub's Ubuntu runner, every PR) run it end to end; the lock entries for the other platforms come from published checksums | D-056 |
