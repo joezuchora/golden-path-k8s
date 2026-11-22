@@ -1,0 +1,13 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: image-admission-aks}
+# The same policy as rendered for AKS (no branch refs, D-055), against the same fixtures as ../image-admission (D-095).
+# Online (F35): verifies real signatures and attestations in GHCR and Rekor.
+policies: [../.rendered/team-a-aks.yaml]
+resources: [../image-admission/resources.yaml]
+variables: ../image-admission/values.yaml
+userinfo: ../image-admission/userinfo.yaml
+results:
+  - {policy: image-admission-team-a, resources: [signed], kind: Pod, result: pass}
+  - {policy: image-admission-team-a, resources: [branch-signed], kind: Pod, result: fail}
+  - {policy: image-admission-team-a, resources: [unsigned], kind: Pod, result: fail}

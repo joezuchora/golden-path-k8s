@@ -131,7 +131,7 @@ If you're setting up a fork or refreshing its fixtures:
 
 1. Find a successful `build-hello` run for the branch or tag you intend to use. Pushing sample app or build workflow changes triggers that workflow.
 2. Download the `images-env` artifact from the run. Check that `HELLO_BUILT_FROM` in the artifact matches the run's commit SHA.
-3. Copy the three `HELLO_*` assignments into `tests/e2e/lib/images.env`, keeping the file's comments. Commit fixture updates through a PR (D-069).
+3. Copy the three `HELLO_*` assignments into `tests/e2e/lib/images.env`, keeping the file's comments, and the same digests into `platform/policies/tests/image-admission/resources.yaml` (`make test-policies` checks they match). Use a run on `main`: the AKS profile admits only `main` and `v1` tags (D-055). `HELLO_BRANCH_SIGNED` is the `HELLO_SIGNED` of a run on any other branch; it is the disallowed-ref case and isn't in the artifact under that name (D-095). Commit fixture updates through a PR (D-069).
 4. Run `make doctor PROFILE=github` to check anonymous registry access for both digests, then run `make e2e-all` against the bootstrapped kind cluster.
 
 A keyless signature from a laptop carries your personal email identity and is **rejected by design**. Signed images come
