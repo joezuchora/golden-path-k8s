@@ -1,0 +1,60 @@
+{
+  "allow-azure-horizondb": {
+    "values": {
+      "service": "component:default/hello",
+      "environment": "dev",
+      "name": "primary-db",
+      "offering": "azure-horizondb"
+    },
+    "status": 200,
+    "files": {
+      "dependency-requests/dev/hello/primary-db.yaml": "version: 1\nservice: hello\nenvironment: dev\nname: primary-db\noffering: azure-horizondb\n"
+    },
+    "log": [
+      "\u001b[32minfo\u001b[39m: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-team-a-dev, dry run); no Git, cluster or cloud call was made"
+    ]
+  },
+  "allow-cloudnative-pg": {
+    "values": {
+      "service": "component:default/hello",
+      "environment": "dev",
+      "name": "primary-db",
+      "offering": "cloudnative-pg"
+    },
+    "status": 200,
+    "files": {
+      "dependency-requests/dev/hello/primary-db.yaml": "version: 1\nservice: hello\nenvironment: dev\nname: primary-db\noffering: cloudnative-pg\n"
+    },
+    "log": [
+      "\u001b[32minfo\u001b[39m: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-shared-workloads, dry run); no Git, cluster or cloud call was made"
+    ]
+  },
+  "deny-cross-team": {
+    "values": {
+      "service": "component:default/inventory",
+      "environment": "dev",
+      "name": "primary-db",
+      "offering": "azure-horizondb"
+    },
+    "status": 403,
+    "error": {
+      "name": "NotAllowedError",
+      "message": "You cannot request dependencies for \"inventory\": it is owned by group:default/team-b and you are not a member. Ask a member of that team, or pick one of your team's services. See backstage/app/README.md#dependency-requests."
+    }
+  },
+  "deny-override": {
+    "values": {
+      "service": "component:default/hello",
+      "environment": "dev",
+      "name": "primary-db",
+      "offering": "azure-horizondb",
+      "deployRepo": "team-b/deploy",
+      "subscriptionId": "22222222-2222-2222-2222-222222222222"
+    },
+    "status": 400,
+    "error": {
+      "name": "InputError",
+      "message": "Field \"deployRepo\" is platform-owned: owner, repository, destination and credentials come from reviewed Git metadata and your sign-in. Remove it and submit only service, environment, name and offering. See backstage/app/README.md#dependency-requests."
+    }
+  }
+}

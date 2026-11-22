@@ -1,0 +1,5 @@
+version: 1
+service: hello
+environment: dev
+name: primary-db
+offering: cloudnative-pg
