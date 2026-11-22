@@ -23,7 +23,7 @@
       "datasourceTemplate": "docker"
     },
     {
-      "description": "Chart values that split the image into repository and tag (Argo CD's Redis, PR #8)",
+      "description": "Chart values that split the image into repository and tag (Argo CD's Redis, D-090)",
       "customType": "regex",
       "managerFilePatterns": ["/^platform/bootstrap/[^/]+\\.yaml$/"],
       "matchStrings": [
