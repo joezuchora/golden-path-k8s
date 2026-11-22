@@ -11,7 +11,7 @@
       "dependency-requests/dev/hello/primary-db.yaml": "version: 1\nservice: hello\nenvironment: dev\nname: primary-db\noffering: azure-horizondb\n"
     },
     "log": [
-      "\u001b[32minfo\u001b[39m: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-team-a-dev, dry run); no Git, cluster or cloud call was made"
+      "info: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-team-a-dev, dry run); no Git, cluster or cloud call was made"
     ]
   },
   "allow-cloudnative-pg": {
@@ -26,7 +26,7 @@
       "dependency-requests/dev/hello/primary-db.yaml": "version: 1\nservice: hello\nenvironment: dev\nname: primary-db\noffering: cloudnative-pg\n"
     },
     "log": [
-      "\u001b[32minfo\u001b[39m: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-shared-workloads, dry run); no Git, cluster or cloud call was made"
+      "info: Rendered dependency-requests/dev/hello/primary-db.yaml for group:default/team-a (destination sandbox-shared-workloads, dry run); no Git, cluster or cloud call was made"
     ]
   },
   "deny-cross-team": {

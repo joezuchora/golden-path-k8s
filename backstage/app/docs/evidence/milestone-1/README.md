@@ -5,6 +5,16 @@ Node 24.22.3. GitHub, Azure and Kubernetes credentials were absent (`start.sh` u
 `AZURE_*`, `ARM_*` and points `KUBECONFIG` at a missing file), and `app-config.yaml` has no integrations. The signed-in
 identity is the guest demo user `user:default/alice`, a member of `group:default/team-a`.
 
+## Clean checkout (Task 5)
+
+The `sandbox/` captures were regenerated from a fresh detached worktree at commit `82bedd9`, also with the credential
+variables unset. In that worktree, `make backstage-check` passed: `yarn install --immutable`, `config:check`, `tsc`,
+and 87 of 87 tests in 8 suites. The worktree stayed unmodified. The `enterprise/` captures come from commit `6351603`
+with `dependencyCatalog.placementProfile: enterprise` in a local, gitignored `app-config.local.yaml`. Between those
+two commits, the backend code that serves dry runs did not change (`git diff 6351603 82bedd9 -- backstage/app/packages`
+is empty). The only integration message in the clean run's log is "Failed to initialize kubernetes backend: valid
+kubernetes config is missing".
+
 ## Dry runs (`scripts/dry-run-evidence.py`)
 
 The script posts the template to `POST /api/scaffolder/v2/dry-run`, the endpoint the Template Editor uses, and stores
