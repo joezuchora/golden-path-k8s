@@ -294,3 +294,8 @@ namespace, while a `ClusterProviderConfig` is reachable from any (F63). So each 
 and DNS zone, and no cluster-scoped config exists at all (D-099, [ADR-0013](adr/0013-appidentity-and-tenant-scoped-provider-identities.md)).
 D-094's admission rule stays, as the first of two layers rather than the only one.
 
+Before any AppIdentity code existed, its ownership model changed. ADR-0013 first had each AppIdentity list the databases it
+uses, which would have let any app in a team name any of the team's databases and get a role on it. The Backstage catalog
+design, written in parallel, had each database name its one owning app. The owner chose that model (D-102): the database's
+immutable `spec.app` decides the single grant, and AppIdentity names only the app.
+
