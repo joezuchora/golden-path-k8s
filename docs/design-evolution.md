@@ -288,3 +288,9 @@ now as a stated deviation from the blog's recommended default, application routi
 and its target version is v1.10.0, whose Kubernetes support covers 1.37, with the pin moving only once our own
 conformance evidence exists (D-097, F60).
 
+Designing AppIdentity then revisited another part of D-082: the one Crossplane identity that every tenant's resources
+ran under. Reading the provider's source showed that a namespaced `ProviderConfig` is resolved only in its own
+namespace, while a `ClusterProviderConfig` is reachable from any (F63). So each tenant now gets its own provider identity
+and DNS zone, and no cluster-scoped config exists at all (D-099, [ADR-0013](adr/0013-appidentity-and-tenant-scoped-provider-identities.md)).
+D-094's admission rule stays, as the first of two layers rather than the only one.
+
