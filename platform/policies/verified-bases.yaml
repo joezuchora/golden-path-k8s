@@ -1,6 +1,7 @@
 # Chainguard runtime bases whose digests admission accepts in an image's base-image attestation (ADR-0005, D-026).
 # reusable-build-sign verifies the base's Chainguard signature before building; this list says which verified digests
-# the platform currently accepts. Renovate owns the bumps (D-019, Phase 6); a bump is a reviewed PR.
+# the platform currently accepts. A bump is a reviewed PR made by hand: Renovate skips this file and the
+# static base (D-091) until Phase 6 designs the add-new, rebuild-fixtures, drop-old sequence.
 admission:
   verifiedBases:
     - name: cgr.dev/chainguard/static
