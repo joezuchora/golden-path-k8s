@@ -36,6 +36,9 @@ published checksums (F34), so it is installed from the bundle tarball, whose che
 3. **Make it permanent:** update `tools/versions.env` and the Version pins row (source + date) in the same PR, and keep the new
    lock lines for all five platforms. Only then remove the lock lines for versions no longer referenced. A cached binary is
    reused only while its lock entry and its own digest are unchanged, so editing the lock forces a fresh verified download.
+   A Crossplane function bump also sets `<pkg>:<version>@sha256:<index digest>` in `crossplane-config/values.yaml` and
+   `render-tests/functions.yaml` (`docker buildx imagetools inspect <pkg>:<version>` prints the digest); `make validate`
+   fails until all three agree (D-093).
 4. **Prove it:** the PR's `validate`, `test-policies` and kind e2e jobs must pass. A minor or major bump of a contract-surface
    component (Kyverno policy APIs, Gateway API, XRD API versions) also follows ADR-0010.
 

@@ -2,9 +2,11 @@
 # compositionProvider selects which composition each XRD enforces: local (kind) | azure (AKS, Phase 4). Both
 # compositions exist for every XRD (CLAUDE.md invariant) and both are validated and render-tested by make validate.
 compositionProvider: ""
+# Pinned as <package>:<tools/versions.env version>@sha256:<index digest> (D-093), the same refs as render-tests/functions.yaml;
+# make validate checks all three agree. Bumped by hand with the Version pins row (D-039), not by Renovate.
 functions:
-  goTemplating: xpkg.crossplane.io/crossplane-contrib/function-go-templating:v0.13.2
-  autoReady: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.7.3
+  goTemplating: xpkg.crossplane.io/crossplane-contrib/function-go-templating:v0.13.2@sha256:20198cb6ea5b4b8a48042343410ec9031e5ec43431d874364ecd3eac8e861290
+  autoReady: xpkg.crossplane.io/crossplane-contrib/function-auto-ready:v0.7.3@sha256:cce8799e19a8f25fb84e1f8dd8855021fdbe8cd7a12a5c22a0c0c345476ae9fe
 azure:
   providers:
     - xpkg.upbound.io/upbound/provider-family-azure:v2.8.4

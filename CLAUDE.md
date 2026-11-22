@@ -42,6 +42,7 @@ they never define it. Cite each source only for what it actually says.
   composed Secret → ESO PushSecret → Key Vault → ExternalSecret.
 - Images: Chainguard bases only, as `:latest@sha256:<digest>` (the free tier is latest-only). Renovate
   owns the digest bumps, except the admission-bound runtime base `chainguard/static` (manual, D-091). Never use unpinned tags.
+  Crossplane functions: `<pkg>:<versions.env version>@sha256:<digest>`, bumped by hand (D-093; `make validate` checks).
 - Tagging taxonomy (ADR-0007) is required on every Azure resource and app K8s object, and Kyverno
   enforces it. Tag values are derived from `platform/tenancy/teams/<team>.yaml`. Never add tag or
   cost-center fields to XRD schemas or Backstage template inputs (D-017).

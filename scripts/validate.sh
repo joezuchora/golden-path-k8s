@@ -158,6 +158,17 @@ for c in "${!want[@]}"; do
   got="$(yq '.dependencies[0].version' "platform/components/$c/Chart.yaml")"
   [ "$got" = "${want[$c]}" ] && pass "$c chart $got = versions.env" || fail "$c chart $got != versions.env ${want[$c]}"
 done
+# Composition functions: the cluster install and the render tests use one ref, <versions.env version>@sha256:<digest> (D-093).
+CPC=platform/components/crossplane-config
+for fn in "goTemplating function-go-templating $FUNCTION_GO_TEMPLATING_VERSION" "autoReady function-auto-ready $FUNCTION_AUTO_READY_VERSION"; do
+  read -r key name ver <<<"$fn"
+  ref="$(yq ".functions.$key" "$CPC/values.yaml")"
+  rt="$(yq "select(.metadata.name == \"$name\") | .spec.package" "$CPC/render-tests/functions.yaml")"
+  if [[ ! $ref =~ ^xpkg\.crossplane\.io/crossplane-contrib/$name:$ver@sha256:[0-9a-f]{64}$ ]]; then
+    fail "$CPC/values.yaml functions.$key '$ref' is not $name:$ver@sha256:<digest> (versions.env, D-093)"
+  elif [ "$rt" != "$ref" ]; then fail "$name: render-tests/functions.yaml '$rt' != values.yaml '$ref' (D-093)"
+  else pass "$name $ver digest-pinned; install and render tests agree"; fi
+done
 # Images: Chainguard bases only, digest-pinned (CLAUDE.md "Images").
 for d in apps/*/Dockerfile; do
   bad="$(grep -E '^ARG (BUILDER|BASE)_IMAGE=' "$d" | grep -vE '=cgr\.dev/chainguard/[a-z0-9-]+:latest(-dev)?@sha256:[0-9a-f]{64}$' || true)"

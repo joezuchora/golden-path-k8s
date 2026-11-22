@@ -91,6 +91,8 @@ jobs:
             echo "--- describe $p"; kubectl -n "${p%%/*}" describe pod "${p#*/}" | tail -25 || true
           done
           kubectl get events -A --sort-by=.lastTimestamp | tail -50 || true
+          # A Crossplane package that won't unpack: its conditions and the registry paths, timed (D-093).
+          bash tests/e2e/lib/registry-probe.sh || true
       - name: Reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
