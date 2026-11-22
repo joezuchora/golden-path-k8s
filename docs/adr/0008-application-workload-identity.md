@@ -47,6 +47,10 @@ until the fitness check below passes there.
 **Phase 4 design (D-082, D-086, Proposed):** for the first dependency, the app's UAMI becomes the Entra administrator
 of its own Flexible Server (one server per XR), so no SQL bootstrap job is needed; federated credentials are created
 for every cluster in the env's workload group (D-079).
+**Revisited (D-098):** the app's UAMI is no longer the administrator. A platform identity administers the server and a
+platform job, running as it, gives each app's UAMI a least-privilege database role, following Microsoft's guidance not to
+use the Entra administrator for regular operations (F61). The job's identity and network path are designed with the
+`AppIdentity` XRD; the federated-credential design above is unchanged.
 
 ## Consequences
 - Positive: no stored secret for Azure-native dependencies; per-app blast radius; identity lifecycle tied to the app.
