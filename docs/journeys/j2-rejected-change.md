@@ -5,13 +5,14 @@
 
 ## What the developer does
 
-Merges a PR that the platform must refuse. The suite merges three:
+Merges a PR that the platform must refuse. The suite merges four:
 
 | Case | Change | Denied by |
 |---|---|---|
 | (a) image | `image:` points at the same app pushed **without** the platform signature (the `UNSIGNED` CI fixture) | `image-admission-team-a` (ImageValidatingPolicy) |
 | (b) manifest | a raw Deployment committed into `xrs/dev/`, which syncs into the tenant namespace (XRs only) | `tenant-namespace-xrs-only` (ValidatingPolicy) |
 | (c) values | `replicas: 21` in the app's values, which golden-service's schema rejects, so nothing renders | the chart's `values.schema.json`, reported by the git-feedback reporter (D-075) |
+| (d) manifest | a raw CloudNativePG `Cluster` in `xrs/dev/`: another API group, which a deny list would miss. On AKS the same rule stops raw Azure managed resources (D-094) | `tenant-namespace-xrs-only` (ValidatingPolicy) |
 
 ## What the developer sees
 

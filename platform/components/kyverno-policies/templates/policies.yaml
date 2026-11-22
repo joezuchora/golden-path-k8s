@@ -91,7 +91,9 @@ spec:
         Deployment (or Job) through the golden-service chart. Docs: {{ $d }}/require-controller.md'
 ---
 # Tenant namespaces on the control plane (tenant-<team>-<env>) hold a team's XRs and nothing else (D-024). The team's
-# AppProject may sync there, so anything else Argo CD applies there is rejected.
+# AppProject may sync there, so anything else Argo CD applies there is rejected. It matches every API group, so the
+# check is an allow list: a raw managed resource (it would run on the shared ClusterProviderConfig, with access to every
+# tenant's resource group) or a CloudNativePG cluster is denied like a Deployment (D-094).
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
@@ -109,11 +111,7 @@ spec:
     namespaceSelector:
       matchLabels: {platform.example.org/tenant-scope: control-plane}
     resourceRules:
-      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods, services, configmaps, secrets, serviceaccounts, persistentvolumeclaims]}
-      - {apiGroups: [apps], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [deployments, statefulsets, daemonsets, replicasets]}
-      - {apiGroups: [batch], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [jobs, cronjobs]}
-      - {apiGroups: [gateway.networking.k8s.io], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [httproutes]}
-      - {apiGroups: [platform.example.org], apiVersions: [v1], operations: [CREATE, UPDATE], resources: ["*"]}
+      - {apiGroups: ["*"], apiVersions: ["*"], operations: [CREATE, UPDATE], resources: ["*"]}
   matchConditions:
     - name: applied-by-argocd
       expression: "request.userInfo.username == 'system:serviceaccount:argocd:argocd-application-controller'"

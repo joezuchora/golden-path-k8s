@@ -10,3 +10,6 @@ results:
   - {policy: tenant-namespace-xrs-only, resources: [sneaky], kind: Deployment, result: fail}
   - {policy: tenant-namespace-xrs-only, resources: [sneaky-config], kind: ConfigMap, result: fail}
   - {policy: tenant-namespace-xrs-only, resources: [eso-vault-writer], kind: ServiceAccount, result: skip}
+  - {policy: tenant-namespace-xrs-only, resources: [sneaky-fic], kind: FederatedIdentityCredential, result: fail}
+  - {policy: tenant-namespace-xrs-only, resources: [sneaky-pg], kind: FlexibleServer, result: fail}
+  - {policy: tenant-namespace-xrs-only, resources: [sneaky-cnpg], kind: Cluster, result: fail}

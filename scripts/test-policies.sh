@@ -54,6 +54,14 @@ for d in "$T"/*/; do
   if [ $rc -ne 0 ] || [ -z "$summary" ] || [ "${passed:-0}" -eq 0 ] || [ "${failed:-1}" -ne 0 ]; then
     echo "FAIL $name: ${summary:-no test summary} (exit $rc)"; fail=1
   else echo "PASS $name: $passed cases"; fi
+  # kyverno test also counts a case as passed when the policy never evaluated the resource (REASON Excluded), so an
+  # out-of-scope deny case would pass silently. Every expected pass or fail needs an evaluated row (REASON Ok) for its
+  # policy and resource; out-of-scope cases are written as result: skip (D-094).
+  evaluated="$(echo "$out" | tr -d '\r' | awk -F'│' 'NF > 7 { gsub(/ /, "", $3); gsub(/ /, "", $5); gsub(/ /, "", $7)
+    if ($7 == "Ok") { n = split($5, p, "/"); print $3 "|" p[n] } }' | sort -u)"
+  while IFS=$'\t' read -r pol res; do
+    grep -qxF "$pol|$res" <<<"$evaluated" || { echo "FAIL $name: $pol never evaluated $res (Excluded), so its expected result proves nothing"; fail=1; }
+  done < <(yq -r '.results[] | select(.result != "skip") | .policy as $p | .resources[] | [$p, .] | @tsv' "$d/kyverno-test.yaml" | tr -d '\r')
   grep -q 'result: fail' "$d/kyverno-test.yaml" || { echo "FAIL $name: no fail case"; fail=1; }
   grep -q 'result: pass' "$d/kyverno-test.yaml" || { echo "FAIL $name: no pass case"; fail=1; }
 done
