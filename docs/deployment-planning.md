@@ -17,7 +17,7 @@ Use the [Developer Contract](developer-contract.md) for the baseline and record 
 
 GHCR is part of the current v1 supply-chain contract. An ACR integration must go through the contract's change rules and prove the same publication, signing, attestation and admission checks before it is listed as supported. See the [contract's escape hatches](developer-contract.md#escape-hatches) for examples of approved exceptions.
 
-## 1. Agree on how the teams work together
+## 1. Agree on the IDP operating model
 
 Record an accountable group or contact for each role. Walk one request through intake, review, provisioning, support and retirement. Be able to say who approves it, who can access it, who pays for it and who gets paged.
 
@@ -28,6 +28,21 @@ Record an accountable group or contact for each role. Walk one request through i
 | Security | Which identity and data rules apply in each environment, who approves exceptions, how elevated access is granted and what evidence is required to enable an offering. |
 | Network and DNS | Who approves regions, address space, private connectivity, DNS zones and ingress names. Which networks and operator egress IPs can reach the platform. |
 | Billing and governance | Who owns the subscription and cost center, which landing-zone policies apply, who receives budget alerts, and who can approve added spend or create a subscription. |
+
+### Record decision rights and contracts
+
+For each capability you plan to enable, name who decides the policy or default, who operates it and handles incidents, and what the service team owns. Record the service-facing promise, its limits, how you verify it, and who approves changes or exceptions. Use the [Developer Contract](developer-contract.md) and its [RACI](developer-contract.md#raci-d-037) as the reference. The roles below are a starting point for assigning real teams or groups.
+
+| IDP capability | Example decision rights and handoff | Contract to agree before enabling |
+| --- | --- | --- |
+| Landing zones, tenancy and cost | Cloud governance sets the landing-zone rules. The platform team approves placement and vends or registers destinations. The service owner manages spend within the allocation. | Approved environments and destinations, team boundary, quotas, cost allocation, budget alerts and retirement ownership. |
+| Cluster runtime, network and DNS | The platform team operates AKS and ingress. The network owner approves address space, routes, DNS and connectivity to shared foundations. The service team owns its application's routes. | Supported runtimes, allowed traffic and ingress, who responds to platform outages, and the network and isolation tests. |
+| Identity, access and policy | Security owns the access baseline and exception rules. The platform team implements roles and admission controls. The service owner approves access to the service's dependencies within those rules. | Least-privilege scope, assignment and revocation, auditable exceptions, and proof that an unauthorized identity is denied. |
+| Catalog, GitOps and supply chain | The platform team owns templates, CI and admission. The service team owns the application and deploy PR. Security reviews changes to the trust policy. | Request inputs, Git review and release rules, trusted artifacts and provenance, rejection feedback and rollback. |
+| Data and shared dependencies | The platform team qualifies offerings and operates shared backends. Each service team owns its requested resource and data. Agree who performs recovery and who verifies the data afterward. | Approved offerings, ownership and permitted consumers, support boundary, cost, retention and a recovery test. |
+| Observability and incident response | The platform team runs shared telemetry. Service teams set their application objectives and handle application alerts. Name a handoff for incidents spanning both. | What teams can see, who gets paged, the escalation route and how to verify access and alert delivery. |
+
+Keep one record per enabled capability in the reviewed deployment configuration or link to the owning team's runbook. Agree on the approver and evidence before enabling a capability, including when multiple roles belong to the same person in the demo.
 
 ## 2. Choose greenfield or existing foundations
 
@@ -62,6 +77,7 @@ Copy this worksheet once for the demo or once per approved destination in an ent
 Service, owning team and on-call:
 Environment, deploy repository and approved refs:
 Platform owner, security reviewer, network reviewer and billing contact:
+Capability contracts, named decision owners and on-call runbook links:
 Entra tenant and approved developer, deployment and runtime identities:
 Destination alias, subscription ID, management group and allowed regions:
 Per foundation, create or reuse, approved resource IDs and owner:
