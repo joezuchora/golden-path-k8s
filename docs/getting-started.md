@@ -149,6 +149,9 @@ The reference deployment uses one existing Azure subscription for the platform a
 see [subscription placement and vending](adr/0014-subscription-placement-and-vending.md), which describes how to
 adopt existing landing zones before automating subscription creation.
 
+0. Complete the [deployment planning walkthrough](deployment-planning.md). Choose the one-subscription demo or use
+   the enterprise example to map team ownership, governance, costs and approved destinations.
+
 1. Fill in the environment: copy `infra/envs/sandbox/sandbox.tfvars.example` to `sandbox.auto.tfvars` (gitignored). The
    subscription, region, environment id, teardown owner, expiry date and API server allowlist have no defaults.
 2. `az login`, then `make aks-preflight` (= `make doctor PROFILE=cloud`, read-only, D-084). It checks the subscription,
