@@ -48,6 +48,12 @@ For the managed choice, show region and service sizing as estimate inputs. For t
 
 Use the Backstage Scaffolder's standard template form and dry-run support. Add the PR publish action after the dry run is covered. See [Backstage template configuration](https://backstage.io/docs/features/software-templates/configuration/) and [dry-run testing](https://backstage.io/docs/features/software-templates/dry-run-testing/).
 
+## Local release sequence
+
+The database dry run and placement validator ship together. Local fixtures cover the one-subscription sandbox and a two-team enterprise placement model. Keep the same request file in both scenarios and exercise cross-team denial before offering a Git publish action.
+
+After the database proof, add the Azure Managed Redis and Valkey cache choices using the same flow. The kind team-onboarding exercise and first language template are independent tracks with their own local exit tests. The [implementation plan](../plans/2026-11-22-local-backstage-catalog.md) records the sequence and acceptance checks for each track.
+
 ## Acceptance checks
 
 - Dry-run each database choice for the sample service and compare the generated request to the expected file.
