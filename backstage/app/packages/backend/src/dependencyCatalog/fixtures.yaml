@@ -1,0 +1,57 @@
+# Platform-owned dependency catalog data for the local preview (Milestone 1).
+# One dataset feeds the form's choices, its cost and availability presentation, and the backend validator.
+# Every cost figure is ILLUSTRATIVE fixture data for exercising the presentation: not a quote, not a live rate.
+# Placement profiles: "sandbox" is the one-subscription reference deployment (ADR-0014); "enterprise" simulates
+# per-team landing zones plus a platform-owned shared in-cluster destination. Subscription IDs are placeholders.
+version: 1
+offerings:
+  - id: azure-horizondb
+    title: Azure HorizonDB
+    capability: database
+    mode: managed
+    interface: postgresql
+    status: preview
+    operatingOwner: Platform team (Azure-managed service; the service team owns its data and queries)
+    availability: Zone-redundant target, matched to the in-cluster option. Not yet qualified on this platform.
+    cost:
+      basis: illustrative
+      inputs:
+        - "Region: the destination's approved region (regional rate unavailable in this preview)"
+        - "Sizing: 2 vCores compute, 32 GiB storage, one zone-redundant replica"
+  - id: cloudnative-pg
+    title: PostgreSQL on AKS (CloudNativePG)
+    capability: database
+    mode: in-cluster
+    interface: postgresql
+    status: preview
+    operatingOwner: Platform team (operates the CloudNativePG operator and clusters on the workload AKS; the service team owns its data and queries)
+    availability: Zone-redundant target, matched to the managed option (one primary, one standby). Not yet qualified on this platform.
+    cost:
+      basis: illustrative
+      currency: USD
+      allocatedMonthly: 60
+      incrementalMonthly: 140
+      inputs:
+        - "Allocated: 2 instances x (1 vCPU, 4 GiB) requests, 2 x 32 GiB premium disks"
+        - "Incremental: one added node if the workload group has no spare capacity"
+profiles:
+  sandbox:
+    destinations:
+      - {ref: sandbox-team-a-dev, kind: azure, subscriptionId: 00000000-0000-0000-0000-000000000000, resourceGroup: rg-gp-team-a-dev, approvedOwners: [group:default/team-a]}
+      - {ref: sandbox-team-b-dev, kind: azure, subscriptionId: 00000000-0000-0000-0000-000000000000, resourceGroup: rg-gp-team-b-dev, approvedOwners: [group:default/team-b]}
+      - {ref: sandbox-shared-workloads, kind: in-cluster, workloadGroup: shared, approvedOwners: [group:default/team-a, group:default/team-b]}
+    placements:
+      - {owner: group:default/team-a, environment: dev, offering: azure-horizondb, destinationRef: sandbox-team-a-dev}
+      - {owner: group:default/team-a, environment: dev, offering: cloudnative-pg, destinationRef: sandbox-shared-workloads}
+      - {owner: group:default/team-b, environment: dev, offering: azure-horizondb, destinationRef: sandbox-team-b-dev}
+      - {owner: group:default/team-b, environment: dev, offering: cloudnative-pg, destinationRef: sandbox-shared-workloads}
+  enterprise:
+    destinations:
+      - {ref: team-a-dev-lz, kind: azure, subscriptionId: 11111111-1111-1111-1111-111111111111, resourceGroup: rg-team-a-dev-data, approvedOwners: [group:default/team-a]}
+      - {ref: team-b-dev-lz, kind: azure, subscriptionId: 22222222-2222-2222-2222-222222222222, resourceGroup: rg-team-b-dev-data, approvedOwners: [group:default/team-b]}
+      - {ref: platform-aks-dev, kind: in-cluster, workloadGroup: shared-dev, approvedOwners: [group:default/team-a, group:default/team-b]}
+    placements:
+      - {owner: group:default/team-a, environment: dev, offering: azure-horizondb, destinationRef: team-a-dev-lz}
+      - {owner: group:default/team-a, environment: dev, offering: cloudnative-pg, destinationRef: platform-aks-dev}
+      - {owner: group:default/team-b, environment: dev, offering: azure-horizondb, destinationRef: team-b-dev-lz}
+      - {owner: group:default/team-b, environment: dev, offering: cloudnative-pg, destinationRef: platform-aks-dev}
