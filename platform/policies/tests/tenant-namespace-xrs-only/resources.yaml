@@ -34,8 +34,8 @@ metadata:
   namespace: tenant-team-a-dev
   annotations: {argocd.argoproj.io/tracking-id: 'tenancy-team-a-control-plane-in-cluster:/ServiceAccount:tenant-team-a-dev/eso-vault-writer'}
 ---
-# D-094: a raw managed resource from a team's xrs/ folder would run on the shared ClusterProviderConfig (Contributor on
-# every tenant resource group), so it could federate another team's identity. Only XRs are allowed, whatever the group.
+# D-094: a raw managed resource from a team's xrs/ folder bypasses the XR API. Before D-099 it ran on a shared provider
+# config that reached every tenant's resource group. Only XRs are allowed, whatever the group.
 apiVersion: managedidentity.azure.m.upbound.io/v1beta1
 kind: FederatedIdentityCredential
 metadata:

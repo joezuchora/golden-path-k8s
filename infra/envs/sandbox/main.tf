@@ -103,19 +103,22 @@ module "workload" {
   tags                 = merge(local.platform_tags, { "app" = "workloads" })
 }
 
-# --- Tenants: one per team and env (D-078, D-082).
+# --- Tenants: one per team and env (D-078, D-082), each with its own Crossplane provider identity and DNS zone (D-099).
 module "tenant" {
-  source                  = "../../modules/tenant"
-  for_each                = local.tenants
-  team                    = each.value.team
-  env                     = each.value.env
-  workload_group          = each.value.group
-  environment_id          = var.environment_id
-  name_prefix             = local.prefix
-  location                = var.location
-  tenant_id               = data.azurerm_client_config.current.tenant_id
-  control_issuer          = module.control.oidc_issuer_url
-  workload_issuers        = { for k, c in var.workload_clusters : k => module.workload[k].oidc_issuer_url if c.group == each.value.group }
-  crossplane_principal_id = azurerm_user_assigned_identity.crossplane.principal_id
-  base_tags               = local.base_tags
+  source                         = "../../modules/tenant"
+  for_each                       = local.tenants
+  team                           = each.value.team
+  env                            = each.value.env
+  workload_group                 = each.value.group
+  environment_id                 = var.environment_id
+  name_prefix                    = local.prefix
+  location                       = var.location
+  tenant_id                      = data.azurerm_client_config.current.tenant_id
+  control_issuer                 = module.control.oidc_issuer_url
+  workload_issuers               = { for k, c in var.workload_clusters : k => module.workload[k].oidc_issuer_url if c.group == each.value.group }
+  provider_service_accounts      = var.crossplane_provider_service_accounts
+  vnet_id                        = module.network.vnet_id
+  postgres_subnet_id             = module.network.postgres_subnet_id
+  subnet_join_role_definition_id = azurerm_role_definition.postgres_subnet_join.role_definition_resource_id
+  base_tags                      = local.base_tags
 }

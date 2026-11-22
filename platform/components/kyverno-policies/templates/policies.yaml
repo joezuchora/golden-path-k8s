@@ -92,8 +92,8 @@ spec:
 ---
 # Tenant namespaces on the control plane (tenant-<team>-<env>) hold a team's XRs and nothing else (D-024). The team's
 # AppProject may sync there, so anything else Argo CD applies there is rejected. It matches every API group, so the
-# check is an allow list: a raw managed resource (it would run on the shared ClusterProviderConfig, with access to every
-# tenant's resource group) or a CloudNativePG cluster is denied like a Deployment (D-094).
+# check is an allow list: a raw managed resource or a CloudNativePG cluster is denied like a Deployment (D-094). Since
+# D-099 a managed resource can only use its own tenant's credentials; this rule keeps teams to the XR API on top of that.
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:

@@ -65,7 +65,7 @@ else echo "PASS nothing was admitted (no Deployment in tenant-team-a-dev)"; fi
 
 echo "== (d) a raw resource of another API group (CloudNativePG) in xrs/dev/"
 # Replaces (b)'s file, so this commit's status can only be the Cluster's denial. On AKS the same rule denies raw Azure
-# managed resources, which would otherwise run on the shared ClusterProviderConfig (D-094).
+# managed resources, which would otherwise bypass the XR API (D-094; their credentials are the tenant's own, D-099).
 cat >/tmp/j2d.$$ <<EOF
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

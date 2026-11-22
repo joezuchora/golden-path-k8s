@@ -48,8 +48,23 @@ variable "workload_issuers" {
   type        = map(string)
 }
 
-variable "crossplane_principal_id" {
-  description = "Principal ID of Crossplane's identity."
+variable "provider_service_accounts" {
+  description = "Service accounts of the Crossplane Azure providers on the control-plane cluster (crossplane-config DeploymentRuntimeConfigs)."
+  type        = list(string)
+}
+
+variable "vnet_id" {
+  description = "The environment's VNet, linked to the tenant's PostgreSQL private DNS zone."
+  type        = string
+}
+
+variable "postgres_subnet_id" {
+  description = "The subnet delegated to PostgreSQL Flexible Server (shared by the environment's tenants)."
+  type        = string
+}
+
+variable "subnet_join_role_definition_id" {
+  description = "Resource ID of the custom role that only allows joining the delegated subnet (D-099)."
   type        = string
 }
 

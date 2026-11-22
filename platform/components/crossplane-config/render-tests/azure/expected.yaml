@@ -115,8 +115,8 @@ spec:
     serverIdSelector:
       matchControllerRef: true
   providerConfigRef:
-    kind: ClusterProviderConfig
-    name: default
+    kind: ProviderConfig
+    name: tenant
 ---
 apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
 kind: FlexibleServer
@@ -144,7 +144,7 @@ spec:
       tenantId: 00000000-0000-0000-0000-000000000000
     delegatedSubnetId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-gp-test01-platform/providers/Microsoft.Network/virtualNetworks/vnet-gp-test01/subnets/snet-postgres
     location: westeurope
-    privateDnsZoneId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-gp-test01-platform/providers/Microsoft.Network/privateDnsZones/test01.private.postgres.database.azure.com
+    privateDnsZoneId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-gp-test01-team-a-dev/providers/Microsoft.Network/privateDnsZones/team-a-dev.gp-test01.private.postgres.database.azure.com
     publicNetworkAccessEnabled: false
     resourceGroupName: rg-gp-test01-team-a-dev
     skuName: B_Standard_B1ms
@@ -160,5 +160,5 @@ spec:
       team: team-a
     version: "17"
   providerConfigRef:
-    kind: ClusterProviderConfig
-    name: default
+    kind: ProviderConfig
+    name: tenant

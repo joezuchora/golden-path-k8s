@@ -99,9 +99,9 @@ bootstrap() {
   [ -n "${GP_GITHUB_STATUS_TOKEN:-}" ] || die "GP_GITHUB_STATUS_TOKEN is unset: Argo CD needs it to write commit statuses on the deploy repos (D-080)"
   log bootstrap "start"
   kubeconfigs
-  local tenant sub ids crossplane argocd
+  local tenant sub argocd
   tenant="$(jq -r .environment.tenant_id "$RECORD")"; sub="$(jq -r .environment.subscription_id "$RECORD")"
-  ids="$(tf_ output -json identities)"; crossplane="$(echo "$ids" | jq -r .crossplane)"; argocd="$(echo "$ids" | jq -r .argocd)"
+  argocd="$(tf_ output -json identities | jq -r .argocd)"
 
   local c
   for c in $(jq -r '.clusters.workloads | keys[]' "$RECORD"); do
@@ -125,8 +125,10 @@ bootstrap() {
 
   step "cluster Secrets: capability labels and per-environment annotations (D-023, D-079, D-081)"
   local pvals tvals
-  pvals="$(jq -cn --arg t "$tenant" --arg s "$sub" --arg x "$crossplane" '{global: {azure: {tenantId: $t, subscriptionId: $s, crossplaneClientId: $x}}}')"
-  tvals="$(jq -c --arg t "$tenant" '{azure: {tenantId: $t, tenants: (.tenants | map_values({keyVaultUrl, writerClientId, readerClientId}))}}' "$RECORD")"
+  # Crossplane has no identity of its own (D-099): each tenant's provider client ID goes to its namespaced ProviderConfig.
+  pvals="$(jq -cn --arg t "$tenant" '{global: {azure: {tenantId: $t}}}')"
+  tvals="$(jq -c --arg t "$tenant" --arg s "$sub" '{azure: {tenantId: $t, subscriptionId: $s,
+    tenants: (.tenants | map_values({keyVaultUrl, writerClientId, readerClientId, providerClientId}))}}' "$RECORD")"
   cluster_secret control in-cluster https://kubernetes.default.svc '{"tlsClientConfig":{"insecure":false}}' \
     '{"platform.example.org/hosts-control-plane":"true"}' managed "$pvals" "$tvals"
   for c in $(jq -r '.clusters.workloads | keys[]' "$RECORD"); do
@@ -159,8 +161,9 @@ EOF
   jq -n --slurpfile r "$RECORD" --argjson pg "$(tf_ output -json postgres)" '{apiVersion: "apiextensions.crossplane.io/v1beta1", kind: "EnvironmentConfig",
       metadata: {name: "azure-platform"},
       data: {environmentId: $r[0].environment.environment_id, location: $r[0].environment.location, tenantId: $r[0].environment.tenant_id,
-             postgresSubnetId: $pg.subnet_id, postgresPrivateDnsZoneId: $pg.private_dns_zone_id,
-             tenantResourceGroups: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.resource_group}) | from_entries)}}' \
+             postgresSubnetId: $pg.subnet_id,
+             tenantResourceGroups: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.resource_group}) | from_entries),
+             tenantPostgresDnsZones: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.postgresPrivateDnsZoneId}) | from_entries)}}' \
     | k control apply -f - >/dev/null
   log bootstrap "ok"
   echo "bootstrap done: Argo CD on the control cluster now reconciles the platform from $PLATFORM_REPO@$REVISION"
@@ -220,6 +223,11 @@ verify_teardown() {
   for p in $(jq -r '.environment.identity_principals[]' "$RECORD"); do
     n="$(az_ role assignment list --subscription "$SUB" --all --query "length([?principalId=='$p'])" -o tsv)"
     [ "${n:-0}" = 0 ] && echo "PASS no role assignment for identity $p" || { echo "FAIL $n role assignment(s) still reference identity $p"; bad=1; }
+  done
+  # Custom role definitions carry no tags, so the tag query above can't see them (D-099).
+  for g in $(jq -r '.environment.custom_roles // [] | .[]' "$RECORD"); do
+    n="$(az_ role definition list --subscription "$SUB" --custom-role-only true --name "$g" --query 'length(@)' -o tsv)"
+    [ "${n:-0}" = 0 ] && echo "PASS custom role $g is gone" || { echo "FAIL custom role $g still exists"; bad=1; }
   done
   n="$(az_ keyvault list-deleted --subscription "$SUB" --query "length([?properties.tags.\"environment-id\"=='$ENV_ID'])" -o tsv)"
   [ "${n:-0}" = 0 ] && echo "PASS no soft-deleted Key Vault from this run" || { echo "FAIL $n soft-deleted Key Vault(s) from this run (az keyvault purge)"; bad=1; }

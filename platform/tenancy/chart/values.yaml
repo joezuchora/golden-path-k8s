@@ -15,11 +15,14 @@ workloadGroups: {}
 # Connection-secret backend (D-064): kubernetes (kind: a vault namespace per team and env) | keyvault (AKS, D-078).
 secrets:
   backend: ""
-# keyvault backend only (D-078, D-081): per team and env, the Key Vault and the two ESO identities Terraform created. Written by
-# infra/aks/aks.sh into the cluster Secret annotation platform.example.org/tenancy-values; never in Git.
-#   azure: {tenantId: <guid>, tenants: {<team>-<env>: {keyVaultUrl, writerClientId, readerClientId}}}
+# keyvault backend only (D-078, D-081, D-099): per team and env, the Key Vault, the two ESO identities and the Crossplane
+# provider identity Terraform created. Written by infra/aks/aks.sh into the cluster Secret annotation
+# platform.example.org/tenancy-values; never in Git.
+#   azure: {tenantId: <guid>, subscriptionId: <guid>,
+#           tenants: {<team>-<env>: {keyVaultUrl, writerClientId, readerClientId, providerClientId}}}
 azure:
   tenantId: ""
+  subscriptionId: ""
   tenants: {}
 # How gateway traffic is identified in CiliumNetworkPolicy, per profile (values-<profile>.yaml).
 gatewayIngress:
