@@ -32,6 +32,7 @@ stages (for example `go:latest-dev`) aren't covered: they don't ship, and only t
 only this repo's prefix, so a team building from its own repo needs its prefix added to the policy values. Who may change
 the reusable workflow, its tags, the caller allowlists and branch protection is part of the GitHub organization baseline
 (Phase 6), together with what happens when a repo is renamed or transferred.
+In this repo, `main` itself is protected by a ruleset (PR only, required checks, no force-push; D-092).
 
 **Tests.** `platform/policies/tests/image-admission/` holds two cases: a CI-signed image (pass) and an unsigned image under
 the same prefix (fail). The tests are online: they need GHCR and Rekor (F35).

@@ -41,7 +41,7 @@ approved separately and is done only when every exit criterion passes. Gaps the 
 | Renovate with the 14-day age gate and the suites as merge gates | Pins should move without breaking evidence | D-039, D-019 |
 | `decision-log-check` in CI | The log's integrity as a required check | D-035 |
 | Pre-merge render and policy checks in every team deploy repo | Today a bad value is reported after merge | D-075, [contract gaps](docs/developer-contract.md#stated-gaps-in-v1) |
-| GitHub organization baseline: who may change the workflow, tags, caller allowlists and branch protection; repo rename and transfer | Admission trusts these | [platform review](docs/platform-review.md) |
+| GitHub organization baseline: who may change the workflow, tags, caller allowlists and branch protection; repo rename and transfer | Admission trusts these | [platform review](docs/platform-review.md); this repo's `main` ruleset: D-092 |
 | Metrics, Grafana (one org per team) and OpenCost, with the Grafana cross-tenant deny test | Contract P3 | D-025, D-033 |
 | DORA and adoption baselines | No targets without a baseline | D-038 |
 
