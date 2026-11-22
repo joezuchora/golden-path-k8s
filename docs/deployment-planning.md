@@ -4,6 +4,19 @@ Start with the teams that will own and operate the platform. Use this walkthroug
 
 **Platform principle:** Keep the developer contract stable across deployments. Let platform teams create or reuse approved foundations and verify that each supported choice meets the same security and operational requirements.
 
+## Governance and deployment choices
+
+Use the [Developer Contract](developer-contract.md) for the baseline and record the choices that apply to your deployment.
+
+| Category | What belongs here |
+| --- | --- |
+| Required controls | Named ownership, reviewed Git changes, scoped identity and access, tested tenant isolation, and signed-image admission. These apply to every supported deployment path. |
+| Reference defaults | One sandbox subscription, a new VNet, and GHCR. Use these for the demo and publish which alternatives the project has qualified. |
+| Organization decisions | Team structure, subscription placement, budgets, network topology, and which qualified offerings to enable. Record the owner and approved configuration in Git. |
+| New integrations and exceptions | Use the contract's change rules for a new integration. For a temporary exception, use the existing exception process with a named owner and expiry. |
+
+GHCR is part of the current v1 supply-chain contract. An ACR integration must go through the contract's change rules and prove the same publication, signing, attestation and admission checks before it is listed as supported. See the [contract's escape hatches](developer-contract.md#escape-hatches) for examples of approved exceptions.
+
 ## 1. Agree on how the teams work together
 
 Record an accountable group or contact for each role. Walk one request through intake, review, provisioning, support and retirement. Be able to say who approves it, who can access it, who pays for it and who gets paged.
