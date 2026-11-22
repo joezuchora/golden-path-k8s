@@ -1,0 +1,2 @@
+# Backstage tooling (Yarn lockfile checks, Prettier) expects LF on every OS (D-101).
+* text=auto eol=lf
