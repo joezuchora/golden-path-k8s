@@ -36,7 +36,7 @@ responses are in [`sandbox/`](sandbox/) and [`enterprise/`](enterprise/).
 
 | Screenshot | What it shows |
 | --- | --- |
-| `01-compare-offerings.jpg` | HorizonDB and CloudNativePG side by side. Each card shows the operating owner, availability target, a "Preview: dry run only" badge and "Illustrative estimate, not a quote". HorizonDB shows that no regional rate is available. CloudNativePG shows allocated capacity and added node spend separately. |
+| `01-compare-offerings.jpg` | Re-captured at `1430850`, after the review fixes. HorizonDB and CloudNativePG side by side, both described as designed to the same availability target and not yet qualified. Each card shows the operating owner, availability target, a "Preview: dry run only" badge and "Illustrative estimate, not a quote". HorizonDB shows that no regional rate is available. CloudNativePG shows allocated capacity and added node spend separately. |
 | `02-review-horizondb.jpg` | The Review step, with only the four logical fields |
 | `05-run-azure-horizondb.jpg` | A run through the form: the exact file plus the backend-derived owner (`group:default/team-a`), repository (`team-a/deploy`) and destination |
 | `04-run-cloudnative-pg.jpg` | The same request with CloudNativePG: same path, different `offering`, destination `sandbox-shared-workloads` |
