@@ -33,3 +33,36 @@ metadata:
   name: eso-vault-writer
   namespace: tenant-team-a-dev
   annotations: {argocd.argoproj.io/tracking-id: 'tenancy-team-a-control-plane-in-cluster:/ServiceAccount:tenant-team-a-dev/eso-vault-writer'}
+---
+# D-094: a raw managed resource from a team's xrs/ folder would run on the shared ClusterProviderConfig (Contributor on
+# every tenant resource group), so it could federate another team's identity. Only XRs are allowed, whatever the group.
+apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+kind: FederatedIdentityCredential
+metadata:
+  name: sneaky-fic
+  namespace: tenant-team-a-dev
+  annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:managedidentity.azure.m.upbound.io/FederatedIdentityCredential:tenant-team-a-dev/sneaky-fic'}
+spec:
+  forProvider:
+    audience: [api://AzureADTokenExchange]
+    issuer: https://example.invalid/
+    subject: system:serviceaccount:team-a-dev:hello
+    parentIdRef: {name: team-b-hello}
+    resourceGroupName: rg-team-b-dev
+---
+apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
+kind: FlexibleServer
+metadata:
+  name: sneaky-pg
+  namespace: tenant-team-a-dev
+  annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:dbforpostgresql.azure.m.upbound.io/FlexibleServer:tenant-team-a-dev/sneaky-pg'}
+spec: {forProvider: {location: eastus2, resourceGroupName: rg-team-b-dev}}
+---
+# The same on kind: a CloudNativePG cluster written directly skips the XRD's size limits and connection delivery.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: sneaky-cnpg
+  namespace: tenant-team-a-dev
+  annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:postgresql.cnpg.io/Cluster:tenant-team-a-dev/sneaky-cnpg'}
+spec: {instances: 1, storage: {size: 64Gi}}

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# J2: a rejected change tells you how to fix it (exit criterion 4). Two changes are merged by PR and denied at admission;
+# J2: a rejected change tells you how to fix it (exit criterion 4). Changes are merged by PR and denied at admission;
 # each denial reaches Git as a failed commit status carrying what failed, why, the fix and a docs link.
 #   (a) image: the same app pushed without the platform signature (UNSIGNED fixture)
 #   (b) manifest: a Deployment committed into xrs/dev/, which syncs into the tenant namespace (XRs only)
 #   (c) values that fail golden-service's schema, so nothing renders (reported by the git-feedback reporter, D-075)
+#   (d) manifest: a raw CloudNativePG Cluster in xrs/dev/, another API group, denied by the same allow list (D-094)
 set -euo pipefail
 . ../lib/gitea.sh; . ../lib/app.sh
 fail=0
@@ -61,4 +62,24 @@ echo "merged team-a/deploy → $sha"
 if d="$(wait_status team-a/deploy "$sha" failure team-a-xrs-dev 360)"; then actionable "$d" tenant-namespace-xrs-only; else fail=1; fi
 if kubectl -n tenant-team-a-dev get deploy sideloaded >/dev/null 2>&1; then echo "FAIL the sideloaded Deployment exists"; fail=1
 else echo "PASS nothing was admitted (no Deployment in tenant-team-a-dev)"; fi
+
+echo "== (d) a raw resource of another API group (CloudNativePG) in xrs/dev/"
+# Replaces (b)'s file, so this commit's status can only be the Cluster's denial. On AKS the same rule denies raw Azure
+# managed resources, which would otherwise run on the shared ClusterProviderConfig (D-094).
+cat >/tmp/j2d.$$ <<EOF
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata: {name: sideloaded}
+spec: {instances: 1, storage: {size: 1Gi}}
+EOF
+n="$(pr_put_file team-a/deploy j2-sideload-db xrs/dev/sideloaded.yaml /tmp/j2d.$$ "Add a database directly")"; rm -f /tmp/j2d.$$
+sha="$(pr_merge team-a/deploy "$n")"
+kubectl -n argocd annotate application team-a-xrs-dev argocd.argoproj.io/refresh=normal --overwrite >/dev/null 2>&1 || true
+echo "merged team-a/deploy → $sha"
+if d="$(wait_status team-a/deploy "$sha" failure team-a-xrs-dev 360)"; then
+  case "$d" in *"Cluster sideloaded"*) actionable "$d" tenant-namespace-xrs-only ;;
+    *) echo "FAIL the status isn't the Cluster's denial: ${d:0:300}"; fail=1 ;; esac
+else fail=1; fi
+if kubectl -n tenant-team-a-dev get clusters.postgresql.cnpg.io sideloaded >/dev/null 2>&1; then echo "FAIL the raw CloudNativePG Cluster exists"; fail=1
+else echo "PASS nothing was admitted (no CloudNativePG Cluster in tenant-team-a-dev)"; fi
 exit $fail
