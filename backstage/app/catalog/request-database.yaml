@@ -28,6 +28,7 @@ spec:
           title: Environment
           type: string
           description: An environment the service declares.
+          ui:field: DependencyEnvironmentPicker
     - title: Database
       required: [name, offering]
       properties:
@@ -40,6 +41,9 @@ spec:
         offering:
           title: Offering
           type: string
+          ui:field: OfferingPicker
+          ui:options:
+            capability: database
   steps:
     - id: render
       name: Render the dependency request
@@ -49,7 +53,14 @@ spec:
         request: ${{ parameters }}
   output:
     text:
-      - title: Request file
+      - title: Request file (local preview)
         content: |
-          `${{ steps.render.output.path }}` (dry run: ${{ steps.render.output.dryRun }}). Live PR publishing is not
-          enabled in this milestone.
+          **Path:** `${{ steps.render.output.path }}`
+
+          ```yaml
+          ${{ steps.render.output.contents | trim }}
+          ```
+
+          Owner `${{ steps.render.output.ownerRef }}`, deploy repository `${{ steps.render.output.deployRepo }}`, and
+          destination `${{ steps.render.output.destinationRef }}` were derived on the backend from reviewed metadata.
+          Dry run: ${{ steps.render.output.dryRun }}. Nothing was published: PR publishing comes in a later milestone.

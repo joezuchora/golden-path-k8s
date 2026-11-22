@@ -87,6 +87,7 @@ describe('dependency:renderRequest', () => {
     expect(output).toHaveBeenCalledWith('dryRun', true);
     expect(output).toHaveBeenCalledWith('ownerRef', 'group:default/team-a');
     expect(output).toHaveBeenCalledWith('deployRepo', 'team-a/deploy');
+    expect(output).toHaveBeenCalledWith('contents', expectedBytes);
   });
 
   it('writes identical bytes when the same request is repeated, in either placement profile', async () => {

@@ -7,6 +7,7 @@
  */
 
 import { createBackend } from '@backstage/backend-defaults';
+import { dependencyCatalogPlugin } from './dependencyCatalog';
 
 const backend = createBackend();
 
@@ -22,6 +23,7 @@ backend.add(
 );
 // Dependency catalog (D-101): dependency:renderRequest, a local-only, dry-run-capable action.
 backend.add(import('./dependencyCatalog'));
+backend.add(dependencyCatalogPlugin); // read-only offerings and environments for the form
 
 // techdocs plugin
 backend.add(import('@backstage/plugin-techdocs-backend'));

@@ -60,6 +60,7 @@ export function createRenderRequestAction(options: RenderRequestActionOptions) {
         ownerRef: z => z.string(),
         deployRepo: z => z.string(),
         destinationRef: z => z.string(),
+        contents: z => z.string(),
       },
     },
     async handler(ctx) {
@@ -102,6 +103,7 @@ export function createRenderRequestAction(options: RenderRequestActionOptions) {
       ctx.output('ownerRef', resolved.ownerRef);
       ctx.output('deployRepo', resolved.deployRepo);
       ctx.output('destinationRef', resolved.destinationRef);
+      ctx.output('contents', rendered.contents);
     },
   });
 }
