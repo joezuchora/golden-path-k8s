@@ -143,6 +143,9 @@ tamper-resistant public log" (F39). Check with `make doctor PROFILE=github`.
 **In progress (D-087): nothing here has run against Azure yet.** Every AKS step goes through `infra/aks/aks.sh` (the
 `make aks-preflight` … `make aks-down` targets call it), which enforces a subscription confirmation, timeouts, a teardown owner and a teardown check (D-083).
 
+0. Complete the [deployment planning walkthrough](deployment-planning.md). Choose the one-subscription demo or use
+   the enterprise example to map team ownership, governance, costs and approved destinations.
+
 1. Fill in the environment: copy `infra/envs/sandbox/sandbox.tfvars.example` to `sandbox.auto.tfvars` (gitignored). The
    subscription, region, environment id, teardown owner, expiry date and API server allowlist have no defaults.
 2. `az login`, then `make aks-preflight` (= `make doctor PROFILE=cloud`, read-only, D-084). It checks the subscription,
