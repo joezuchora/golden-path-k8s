@@ -1,7 +1,6 @@
 # make validate only: stand-in for the platform-values annotation that infra/aks/aks.sh writes to an AKS cluster Secret
 # (D-081), so the managed and byo profiles of every component render and are schema-checked. Test values only.
+# Per-tenant client and subscription IDs are in the tenancy-values stand-in in scripts/validate.sh (D-099).
 global:
   azure:
     tenantId: 00000000-0000-0000-0000-000000000000
-    subscriptionId: 00000000-0000-0000-0000-000000000000
-    crossplaneClientId: 33333333-3333-3333-3333-333333333333

@@ -17,8 +17,3 @@ output "postgres_subnet_cidr" {
   description = "Its CIDR: the L3/L4 egress allow for apps that declare a database (D-082)."
   value       = var.postgres_subnet
 }
-
-output "postgres_private_dns_zone_id" {
-  description = "Private DNS zone for VNet-integrated servers."
-  value       = azurerm_private_dns_zone.postgres.id
-}

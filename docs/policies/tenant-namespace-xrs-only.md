@@ -10,8 +10,9 @@ application controller, for a team's XR application, are checked.
 **Why.** Tenant namespaces hold your dependency requests next to the platform's credentials for them (D-024). Your app
 runs in `<team>-<env>`, where image admission, the network baseline and the other app policies apply. The other app
 policies deliberately don't cover tenant namespaces, so this policy keeps app workloads out of them. It's an allow list
-because a deny list misses new kinds: a raw managed resource would run on Crossplane's shared provider configuration,
-which can reach every tenant's resource group, so it could create, adopt or re-federate another team's resources.
+because a deny list misses new kinds. A raw managed resource bypasses the XR API's limits and derived tags; before
+D-099 it also ran on a provider configuration that could reach every tenant's resource group. Since D-099 Crossplane uses
+only the tenant's own credentials in a tenant namespace, so this policy is the first of two layers, not the only one.
 
 **Fix.** In your deploy repo, `xrs/<env>/` holds only XRs. Move anything else into your app's golden-service values under
 `apps/<app>/<env>.yaml`.

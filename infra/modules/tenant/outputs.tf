@@ -23,7 +23,21 @@ output "reader_client_id" {
   value       = azurerm_user_assigned_identity.reader.client_id
 }
 
+output "provider_client_id" {
+  description = "Client ID of the tenant's Crossplane provider identity (the ProviderConfig named tenant, D-099)."
+  value       = azurerm_user_assigned_identity.provider.client_id
+}
+
+output "postgres_private_dns_zone_id" {
+  description = "The tenant's private DNS zone for VNet-integrated PostgreSQL servers."
+  value       = azurerm_private_dns_zone.postgres.id
+}
+
 output "principal_ids" {
   description = "Principal IDs created here, for the teardown check (no role assignment may outlive its identity)."
-  value       = [azurerm_user_assigned_identity.writer.principal_id, azurerm_user_assigned_identity.reader.principal_id]
+  value = [
+    azurerm_user_assigned_identity.writer.principal_id,
+    azurerm_user_assigned_identity.reader.principal_id,
+    azurerm_user_assigned_identity.provider.principal_id,
+  ]
 }

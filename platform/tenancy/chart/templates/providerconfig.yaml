@@ -1,0 +1,30 @@
+{{- /*
+Crossplane's Azure credentials for this tenant (D-099, ADR-0013). Every azure composition references the ProviderConfig
+named "tenant" in the XR's namespace, and a namespaced ProviderConfig is only ever resolved in its own namespace (F63), so
+what a team's XRs compose can reach only this tenant's resource group and DNS zone. Its client ID is the tenant's provider
+identity, created by infra/modules/tenant and federated to each Azure provider's service account; the token file is the
+one the workload identity webhook projects, found through AZURE_FEDERATED_TOKEN_FILE rather than a hard-coded path (F65).
+There is no ClusterProviderConfig: a resource without this reference has no credentials. AKS profile only
+(secrets.backend=keyvault); kind's local compositions use no cloud provider.
+*/}}
+{{- if and (eq .Values.capability "control-plane") (eq .Values.secrets.backend "keyvault") }}
+{{- if not .Values.azure.subscriptionId }}{{ fail "secrets.backend=keyvault needs azure.subscriptionId for the tenant ProviderConfig (cluster Secret annotation platform.example.org/tenancy-values, written by infra/aks/aks.sh bootstrap)" }}{{ end }}
+{{- range $env := .Values.envs }}
+{{- $key := printf "%s-%s" $.Values.team $env }}
+{{- $t := get $.Values.azure.tenants $key }}
+{{- if not (and $t (get $t "providerClientId")) }}{{ fail (printf "tenancy-values tenants.%s is missing providerClientId: apply infra/envs/<env> and re-run infra/aks/aks.sh bootstrap (D-099)" $key) }}{{ end }}
+---
+apiVersion: azure.m.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: tenant
+  namespace: tenant-{{ $key }}
+  # Its CRD arrives with the provider package, after Crossplane installs it; Argo CD's retry applies it once it exists.
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  credentials: {source: OIDCTokenFile}
+  clientID: {{ $t.providerClientId | quote }}
+  tenantID: {{ $.Values.azure.tenantId | quote }}
+  subscriptionID: {{ $.Values.azure.subscriptionId | quote }}
+{{- end }}
+{{- end }}

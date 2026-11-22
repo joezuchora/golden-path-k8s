@@ -2,36 +2,21 @@
 # control-plane cluster: no client secret, no kubeconfig, no stored cloud credential anywhere. The split-topology check
 # (ADR-0001) asserts that none of them, and no Crossplane object, exists on a workload cluster.
 
-# Crossplane (control plane only): composes team resources into tenant resource groups (Contributor there, granted per
-# tenant in modules/tenant), and joins VNet-integrated servers to the delegated subnet and the private DNS zone (D-082).
-resource "azurerm_user_assigned_identity" "crossplane" {
-  name                = "id-${local.prefix}-crossplane"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.platform.name
-  tags                = local.platform_tags
-}
-
-resource "azurerm_federated_identity_credential" "crossplane" {
-  for_each                  = toset(var.crossplane_provider_service_accounts)
-  name                      = each.key
-  user_assigned_identity_id = azurerm_user_assigned_identity.crossplane.id
-  issuer                    = module.control.oidc_issuer_url
-  subject                   = "system:serviceaccount:crossplane-system:${each.key}"
-  audience                  = ["api://AzureADTokenExchange"]
-}
-
-resource "azurerm_role_assignment" "crossplane_subnet" {
-  scope                = module.network.postgres_subnet_id
-  role_definition_name = "Network Contributor"
-  principal_id         = azurerm_user_assigned_identity.crossplane.principal_id
-  principal_type       = "ServicePrincipal"
-}
-
-resource "azurerm_role_assignment" "crossplane_dns" {
-  scope                = module.network.postgres_private_dns_zone_id
-  role_definition_name = "Private DNS Zone Contributor"
-  principal_id         = azurerm_user_assigned_identity.crossplane.principal_id
-  principal_type       = "ServicePrincipal"
+# Crossplane has no environment-wide identity (D-099): each tenant's provider identity is created in modules/tenant and
+# reaches only that tenant's resource group and DNS zone. The one shared piece is joining the delegated subnet, which this
+# custom role allows and nothing more (Network Contributor would also let a tenant identity change the subnet). Custom
+# roles carry no tags, so verify-teardown checks for it by name.
+resource "azurerm_role_definition" "postgres_subnet_join" {
+  name        = "gp-${var.environment_id}-postgres-subnet-join"
+  scope       = "/subscriptions/${var.subscription_id}"
+  description = "Join the PostgreSQL delegated subnet of golden-path environment ${var.environment_id} (D-099)."
+  permissions {
+    actions = [
+      "Microsoft.Network/virtualNetworks/subnets/read",
+      "Microsoft.Network/virtualNetworks/subnets/join/action",
+    ]
+  }
+  assignable_scopes = [module.network.postgres_subnet_id]
 }
 
 # Argo CD (the hub on the control cluster, ADR-0001): deploys to every workload cluster through Azure RBAC, using

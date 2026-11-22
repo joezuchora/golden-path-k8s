@@ -1,11 +1,13 @@
 # PostgreSQLInstance, azure backend (AKS): Azure Database for PostgreSQL Flexible Server with Entra authentication only
 # (ADR-0008: no stored password), namespaced managed resources only (D-024), D-082:
-# - It lives in the tenant's resource group (rg per team and env, created by Terraform), so Crossplane's identity needs
-#   Contributor on tenant resource groups only, and "the tenant resource group is empty" is the deletion check (ADR-0002).
-# - It's VNet-integrated: a delegated subnet and a private DNS zone linked to the workload VNet, both created by Terraform.
-#   publicNetworkAccessEnabled is false; the app reaches it only by its private FQDN.
-# - The app's own identity becomes the server's Entra administrator through the AppIdentity XR (ADR-0008, next slice), so
-#   this composition grants no access by itself.
+# - It lives in the tenant's resource group (rg per team and env, created by Terraform), and every resource here uses the
+#   tenant's own credentials: the namespaced ProviderConfig "tenant" in the XR's namespace, whose identity is Contributor
+#   on that resource group only (D-099, ADR-0013). There is no ClusterProviderConfig, so nothing here can act for another
+#   tenant. "The tenant resource group is empty" is the deletion check (ADR-0002).
+# - It's VNet-integrated: the environment's delegated subnet and the tenant's own private DNS zone, both created by
+#   Terraform. publicNetworkAccessEnabled is false; the app reaches it only by its private FQDN.
+# - Database access for apps comes with AppIdentity: a per-tenant database-admin identity and a role-sync Job (D-098,
+#   ADR-0013, later slice), so this composition grants no access by itself.
 # Everything environment-specific comes from the EnvironmentConfig "azure-platform", which infra/aks/aks.sh writes from
 # Terraform's outputs. The composed Secret holds one key, `connection`: the connection details as JSON (host, port, dbname,
 # sslmode). The PushSecret stores it in the team's Key Vault under the XR's name, and golden-service's ExternalSecret
@@ -37,7 +39,11 @@ spec:
             {{- $env := dict }}
             {{- range (index (index $er "environment" | default (dict)) "items" | default (list)) }}{{ $env = .resource.data }}{{ end }}
             {{- $rg := "" }}
-            {{- if $env }}{{ $rg = index (default (dict) $env.tenantResourceGroups) $ns | default "" }}{{ end }}
+            {{- $zone := "" }}
+            {{- if $env }}
+            {{- $rg = index (default (dict) $env.tenantResourceGroups) $ns | default "" }}
+            {{- $zone = index (default (dict) $env.tenantPostgresDnsZones) $ns | default "" }}
+            {{- end }}
             {{- $tags := dict }}
             {{- range $k := list "team" "owner" "cost-center" "env" "data-classification" "contract-version" }}
             {{- $key := printf "platform.example.org/%s" $k }}
@@ -47,7 +53,7 @@ spec:
             {{- if $env }}{{ $_ := set $tags "environment-id" ($env.environmentId | default "") }}{{ end }}
             {{- $labels := dict "platform.example.org/dependency" $name }}
             {{- $server := printf "%s-%s" $ns $name | trunc 63 | trimSuffix "-" }}
-            {{- $pc := dict "kind" "ClusterProviderConfig" "name" "default" }}
+            {{- $pc := dict "kind" "ProviderConfig" "name" "tenant" }}
             ---
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: ExtraResources
@@ -60,7 +66,7 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: azure-platform
-            {{- if and $nsl $env $rg }}
+            {{- if and $nsl $env $rg $zone }}
             ---
             apiVersion: dbforpostgresql.azure.m.upbound.io/v1beta1
             kind: FlexibleServer
@@ -80,7 +86,7 @@ spec:
                 storageMb: {{ mul (max 32 (int $xr.spec.storageGB)) 1024 }}
                 publicNetworkAccessEnabled: false
                 delegatedSubnetId: {{ $env.postgresSubnetId | quote }}
-                privateDnsZoneId: {{ $env.postgresPrivateDnsZoneId | quote }}
+                privateDnsZoneId: {{ $zone | quote }}
                 authentication:
                   activeDirectoryAuthEnabled: true
                   passwordAuthEnabled: false

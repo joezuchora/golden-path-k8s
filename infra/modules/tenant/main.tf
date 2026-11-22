@@ -2,8 +2,11 @@
 # connection-secret broker across the cluster split) and the two ESO identities that reach it, mirroring kind's D-064:
 #   writer  Key Vault Secrets Officer; federated to tenant-<team>-<env>/eso-vault-writer on the control-plane cluster
 #   reader  Key Vault Secrets User;    federated to <team>-<env>/eso-vault-reader on every workload cluster in the env's group
-# Crossplane composes the team's databases into the resource group (Contributor on it, nothing wider), so deleting the
-# team's XRs must leave it empty: the provider refuses to delete a resource group that still contains resources.
+#   provider Contributor on the resource group; federated to each Crossplane Azure provider's service account on the
+#            control-plane cluster, used only through the namespaced ProviderConfig "tenant" in tenant-<team>-<env> (D-099)
+# Crossplane composes the team's databases into the resource group as the tenant's own provider identity, so deleting
+# the team's XRs must leave it empty: the provider refuses to delete a resource group that still contains resources. The
+# tenant's PostgreSQL private DNS zone lives here too, so one tenant's identity can't touch another's server records.
 # Tag values come from platform/tenancy/teams/<team>.yaml (ADR-0007, D-017), never from input typed for this module.
 
 locals {
@@ -96,10 +99,53 @@ resource "azurerm_role_assignment" "reader" {
   principal_type       = "ServicePrincipal"
 }
 
-# Crossplane composes databases (and, with AppIdentity, app identities) into this resource group only (D-082).
-resource "azurerm_role_assignment" "crossplane" {
+# Crossplane's providers act for this tenant only as this identity (D-099, ADR-0013): Contributor on this resource group
+# and the subnet-join role on the shared delegated subnet, nothing wider. A provider pod's projected token is its own
+# service account's, so the identity federates to each provider's service account; azurerm serializes credential writes
+# per identity (F65), so for_each doesn't hit the concurrent-write conflict (F62).
+resource "azurerm_user_assigned_identity" "provider" {
+  name                = "id-${local.name}-crossplane"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.tenant.name
+  tags                = local.tags
+}
+
+resource "azurerm_federated_identity_credential" "provider" {
+  for_each                  = toset(var.provider_service_accounts)
+  name                      = each.key
+  user_assigned_identity_id = azurerm_user_assigned_identity.provider.id
+  issuer                    = var.control_issuer
+  subject                   = "system:serviceaccount:crossplane-system:${each.key}"
+  audience                  = local.issuer_aud
+}
+
+resource "azurerm_role_assignment" "provider" {
   scope                = azurerm_resource_group.tenant.id
   role_definition_name = "Contributor"
-  principal_id         = var.crossplane_principal_id
+  principal_id         = azurerm_user_assigned_identity.provider.principal_id
   principal_type       = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "provider_subnet_join" {
+  scope              = var.postgres_subnet_id
+  role_definition_id = var.subnet_join_role_definition_id
+  principal_id       = azurerm_user_assigned_identity.provider.principal_id
+  principal_type     = "ServicePrincipal"
+}
+
+# The tenant's own zone for VNet-integrated servers (the name must end in .postgres.database.azure.com), linked to the
+# environment's VNet so every cluster resolves it. It sits in the tenant resource group, so the provider identity's
+# Contributor covers it and no other tenant's identity reaches it (D-099).
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "${local.key}.${var.name_prefix}.private.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.tenant.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                 = "link-${local.name}"
+  private_dns_zone_id  = azurerm_private_dns_zone.postgres.id
+  virtual_network_id   = var.vnet_id
+  registration_enabled = false
+  tags                 = local.tags
 }

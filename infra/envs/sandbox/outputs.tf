@@ -19,9 +19,11 @@ output "environment" {
     node_rgs        = concat([module.control.node_resource_group], [for m in module.workload : m.node_resource_group])
     tenant_rgs      = [for t in module.tenant : t.resource_group]
     identity_principals = concat(
-      [azurerm_user_assigned_identity.crossplane.principal_id, azurerm_user_assigned_identity.argocd.principal_id],
+      [azurerm_user_assigned_identity.argocd.principal_id],
       flatten([for t in module.tenant : t.principal_ids])
     )
+    # Untagged, so verify-teardown checks for it by name (D-099).
+    custom_roles = [azurerm_role_definition.postgres_subnet_join.name]
   }
 }
 
@@ -49,29 +51,29 @@ output "cluster_ca" {
 }
 
 output "identities" {
-  description = "Client IDs of the platform identities."
+  description = "Client IDs of the platform identities. Crossplane has none of its own: see tenants.providerClientId (D-099)."
   value = {
-    crossplane = azurerm_user_assigned_identity.crossplane.client_id
-    argocd     = azurerm_user_assigned_identity.argocd.client_id
+    argocd = azurerm_user_assigned_identity.argocd.client_id
   }
 }
 
 output "postgres" {
-  description = "VNet integration for the azure PostgreSQL composition (D-082)."
+  description = "VNet integration for the azure PostgreSQL composition (D-082); each tenant's DNS zone is in tenants (D-099)."
   value = {
-    subnet_id           = module.network.postgres_subnet_id
-    subnet_cidr         = module.network.postgres_subnet_cidr
-    private_dns_zone_id = module.network.postgres_private_dns_zone_id
+    subnet_id   = module.network.postgres_subnet_id
+    subnet_cidr = module.network.postgres_subnet_cidr
   }
 }
 
 output "tenants" {
-  description = "Per team and env: resource group, Key Vault and ESO identities (the tenancy-values annotation, D-078)."
+  description = "Per team and env: resource group, Key Vault, ESO and provider identities, DNS zone (the tenancy-values annotation, D-078, D-099)."
   value = { for k, t in module.tenant : k => {
-    tenant_namespace = t.tenant_namespace
-    resource_group   = t.resource_group
-    keyVaultUrl      = t.key_vault_url
-    writerClientId   = t.writer_client_id
-    readerClientId   = t.reader_client_id
+    tenant_namespace         = t.tenant_namespace
+    resource_group           = t.resource_group
+    keyVaultUrl              = t.key_vault_url
+    writerClientId           = t.writer_client_id
+    readerClientId           = t.reader_client_id
+    providerClientId         = t.provider_client_id
+    postgresPrivateDnsZoneId = t.postgres_private_dns_zone_id
   } }
 }

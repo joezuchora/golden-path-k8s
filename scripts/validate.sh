@@ -47,10 +47,12 @@ render_all() { # name → rendered file, for every chart the platform ships, per
         --set global.platform.gitBase=http://gitea-http.gitea.svc:3000 \
         --set global.platform.platformRepo=http://gitea-http.gitea.svc:3000/x/y.git >"$W/tenancy-$(basename "$t" .yaml)-$cap.yaml" 2>"$W/err" \
         || fail "render tenancy $t ($cap): $(head -3 "$W/err")"
-      # AKS profile (D-078, D-080, D-081): keyvault backend and GitHub deploy repos, with test identities for every env.
-      yq -o json '{"azure": {"tenantId": "00000000-0000-0000-0000-000000000000", "tenants": ([.envs[] as $e |
-          {"key": (.team + "-" + $e), "value": {"keyVaultUrl": "https://kv-test.vault.azure.net/",
-           "writerClientId": "11111111-1111-1111-1111-111111111111", "readerClientId": "22222222-2222-2222-2222-222222222222"}}] | from_entries)}}' "$t" >"$W/tv.json"
+      # AKS profile (D-078, D-080, D-081): keyvault backend and GitHub deploy repos, with test identities for every env. The
+      # provider client ID names its tenant, so the ProviderConfig check below can tell one tenant's from another's (D-099).
+      yq -o json '{"azure": {"tenantId": "00000000-0000-0000-0000-000000000000", "subscriptionId": "00000000-0000-0000-0000-000000000000",
+          "tenants": ([.envs[] as $e | {"key": (.team + "-" + $e), "value": {"keyVaultUrl": "https://kv-test.vault.azure.net/",
+           "writerClientId": "11111111-1111-1111-1111-111111111111", "readerClientId": "22222222-2222-2222-2222-222222222222",
+           "providerClientId": ("provider-" + .team + "-" + $e)}}] | from_entries)}}' "$t" >"$W/tv.json"
       helm template t platform/tenancy/chart -f platform/tenancy/chart/values.yaml -f platform/tenancy/chart/values-managed.yaml \
         -f platform/policies/verified-bases.yaml -f "$t" -f "$W/tv.json" --set capability=$cap \
         --set global.platform.gitBase=https://github.com --set-string 'global.platform.deployRepoTemplate=joezuchora/gp-{team}-deploy' \
@@ -169,6 +171,28 @@ for fn in "goTemplating function-go-templating $FUNCTION_GO_TEMPLATING_VERSION" 
   elif [ "$rt" != "$ref" ]; then fail "$name: render-tests/functions.yaml '$rt' != values.yaml '$ref' (D-093)"
   else pass "$name $ver digest-pinned; install and render tests agree"; fi
 done
+# Tenant-scoped provider credentials (D-099, ADR-0013). A ClusterProviderConfig is reachable from any namespace (F63), so
+# none may exist anywhere; each tenant namespace gets one ProviderConfig "tenant" with its own tenant's identity, and every
+# azure managed resource names it.
+cpcs="$(cat "$W"/*.yaml "$CPC"/render-tests/*/expected.yaml | yq -N 'select(.kind == "ClusterProviderConfig") | .metadata.name' 2>/dev/null | grep -v '^---' || true)"
+[ -z "$cpcs" ] && pass "no ClusterProviderConfig in any render (D-099)" || fail "ClusterProviderConfig rendered: $cpcs (D-099: use the tenant's namespaced ProviderConfig)"
+pcbad=0
+for f in "$W"/tenancy-*-control-plane-managed.yaml; do
+  team="$(basename "$f" -control-plane-managed.yaml)"; team="${team#tenancy-}"
+  want="$(yq -r '.envs[] | "tenant-'"$team"'-" + . + " provider-'"$team"'-" + . + " tenant"' "platform/tenancy/teams/$team.yaml" | sort)"
+  got="$(yq -N 'select(.kind == "ProviderConfig") | .metadata.namespace + " " + .spec.clientID + " " + .metadata.name' "$f" | sort)"
+  [ "$got" = "$want" ] || { fail "$(basename "$f"): ProviderConfigs '$got', want one 'tenant' per tenant namespace with its own identity: '$want'"; pcbad=1; }
+done
+[ $pcbad = 0 ] && pass "each tenant namespace has one ProviderConfig 'tenant' with its own provider identity (D-099)"
+mrbad="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | select(.spec.providerConfigRef.kind != "ProviderConfig" or .spec.providerConfigRef.name != "tenant") | .kind + "/" + .metadata.name' "$CPC"/render-tests/azure/expected.yaml)"
+n="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | .kind' "$CPC"/render-tests/azure/expected.yaml | grep -c . || true)"
+[ -z "$mrbad" ] && [ "${n:-0}" -gt 0 ] && pass "azure composition: all $n managed resources use ProviderConfig/tenant (D-099)" \
+  || fail "azure composition managed resources not on ProviderConfig/tenant: ${mrbad:-none rendered}"
+# Every provider's service account is federated to every tenant's provider identity: the two lists must match.
+provs="$(yq -r '.azure.providers[]' "$CPC/values.yaml" | sed -E 's#.*/##; s#:.*##' | sort | tr '\n' ' ')"
+tfsas="$(tr -d '\r' <infra/envs/sandbox/variables.tf | sed -n '/variable "crossplane_provider_service_accounts"/,/^}/p' | sed -n 's/.*default *= *\[\(.*\)\].*/\1/p' | tr -d '" ' | tr ',' '\n' | sort | tr '\n' ' ')"
+[ "$provs" = "$tfsas" ] && pass "Crossplane providers = federated provider service accounts ($provs)" \
+  || fail "crossplane-config providers ($provs) != infra/envs/sandbox crossplane_provider_service_accounts ($tfsas): a provider without a federated credential can't authenticate (D-099)"
 # Images: Chainguard bases only, digest-pinned (CLAUDE.md "Images").
 for d in apps/*/Dockerfile; do
   bad="$(grep -E '^ARG (BUILDER|BASE)_IMAGE=' "$d" | grep -vE '=cgr\.dev/chainguard/[a-z0-9-]+:latest(-dev)?@sha256:[0-9a-f]{64}$' || true)"

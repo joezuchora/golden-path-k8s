@@ -44,7 +44,8 @@ Crossplane v2:
   documented escape hatch for observe-only; deletion uses `deletionPolicy: Delete`, Crossplane `Usage` for
   ordering, and the per-tenant resource group as the blast-radius boundary.
 - **On AKS (D-082):** the tenant resource group is created per team and env by Terraform (D-088), and compositions place
-  resources in it (Crossplane's identity is Contributor there only). The azure PostgreSQL server is VNet-integrated, and
+  resources in it, using that tenant's own provider identity, Contributor there only, through a namespaced
+  `ProviderConfig` (D-099, ADR-0013). The azure PostgreSQL server is VNet-integrated, and
   its connection details travel as one JSON key under the XR's name.
 - **Namespaced managed resources only (D-024).** A namespaced XR "can only compose resources in the same namespace",
   so the earlier `LegacyCluster` fallback was invalid and has been removed. The `provider-upjet-azure` source has
