@@ -12,7 +12,7 @@ Start with one database request template and two offering definitions. The appro
 
 Keep the request shape reusable for object storage, shared files, cache, job queues and event streams. Add one capability at a time. Each defines its protocol, cost drivers and proof of isolation. Phase 4 continues to own AKS, identity, private networking and live qualification of backend integrations.
 
-Before bootstrapping AKS, use the [deployment planning walkthrough](../../deployment-planning.md) to agree on owners, approval routes and approved destinations.
+Before bootstrapping AKS, use the [deployment planning walkthrough](../../deployment-planning.md) to agree on owners, approval routes and approved destinations. The installer decides which foundations to create or reuse. Both choices use the same service-facing request.
 
 ## Request and placement
 

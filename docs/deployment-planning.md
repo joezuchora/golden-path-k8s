@@ -2,6 +2,8 @@
 
 Start with the teams that will own and operate the platform. Use this walkthrough to agree on who makes each decision and to collect the settings the installer needs. For the reference demo, one person can cover every role and one Azure subscription can host every team.
 
+**Platform principle:** Keep the developer contract stable across deployments. Let platform teams create or reuse approved foundations and verify that each supported choice meets the same security and operational requirements.
+
 ## 1. Agree on how the teams work together
 
 Record an accountable group or contact for each role. Walk one request through intake, review, provisioning, support and retirement. Be able to say who approves it, who can access it, who pays for it and who gets paged.
@@ -14,7 +16,22 @@ Record an accountable group or contact for each role. Walk one request through i
 | Network and DNS | Who approves regions, address space, private connectivity, DNS zones and ingress names. Which networks and operator egress IPs can reach the platform. |
 | Billing and governance | Who owns the subscription and cost center, which landing-zone policies apply, who receives budget alerts, and who can approve added spend or create a subscription. |
 
-## 2. Fill out the deployment worksheet
+## 2. Choose greenfield or existing foundations
+
+Make the choice for each foundation. A deployment can use a new workload spoke connected to an existing hub and pull from an existing registry. The operating model records the owner, approved resource IDs, and who can change or retire each resource. Service teams keep the same catalog request.
+
+| Foundation | Reference demo today | Brownfield design target |
+| --- | --- | --- |
+| Network | The sandbox Terraform root creates a VNet, AKS node subnets and database network resources. | The network team provides approved spoke, subnet and DNS details and owns the hub. Record routing, egress, address overlaps, connectivity and scoped permissions for the selected AKS configuration. Supply only the existing resources the platform actually needs. |
+| Container registry | The reference build and admission flow uses GitHub Container Registry (GHCR). | Supply an approved Azure Container Registry (ACR) resource ID, login server and repository scope. Confirm the build publisher, the kubelet pull identity, registry reachability, and the signing and admission policy together. |
+
+Treat existing resources as dependencies owned outside the sandbox lifecycle. Reference them by ID and keep them outside the bootstrap's Terraform ownership. Review any new peering, DNS links or role assignments with their owners and track those separately. Before enabling this path, verify that a deployment can pull and admit a correctly signed image, rejects an untrusted image, and that teardown leaves the existing network and registry in place.
+
+The current repo creates its sandbox network and uses GHCR. Adoption of an existing network and support for ACR are follow-on integrations. Qualify one network shape and one registry path, then expand based on actual deployments. Importing existing workloads into the platform is a separate adoption project.
+
+See [Microsoft's AKS baseline architecture](https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks/baseline-aks) and [AKS integration with an existing ACR](https://learn.microsoft.com/en-us/azure/aks/cluster-container-registry-integration).
+
+## 3. Fill out the deployment worksheet
 
 Keep the approved organization and placement metadata in Git. Use Backstage to display it and collect requests. Put credentials in the installer environment or the approved secret store.
 
@@ -34,17 +51,18 @@ Environment, deploy repository and approved refs:
 Platform owner, security reviewer, network reviewer and billing contact:
 Entra tenant and approved developer, deployment and runtime identities:
 Destination alias, subscription ID, management group and allowed regions:
+Per foundation, create or reuse, approved resource IDs and owner:
 Workload group, network ranges, private DNS and ingress hostname:
 Data classification, policies and approved dependency offerings:
 Cost center, budget, alert recipients and shared-cost allocation:
 Quota, retention and restore targets, teardown owner and expiry:
 ```
 
-## 3. Walk through one request
+## 4. Walk through one request
 
 **Demo example.** The installer acts as platform operator, security reviewer and billing contact. Team A owns `hello` in `dev` and deploys to the `shared` workload group. Team B can exercise a second ownership boundary. Both teams use one existing subscription. Set `subscription_id` once in the [sandbox Terraform example](../infra/envs/sandbox/sandbox.tfvars.example). Set the team owners, Entra group IDs, cost centers, and approved environments using the [sample team definition](../platform/tenancy/teams/team-a.yaml). For the Azure deploy repositories, confirm `GP_DEPLOY_REPO_TEMPLATE` in the [bootstrap script](../infra/aks/aks.sh).
 
-**Enterprise example.** A fictional company runs a platform AKS fleet, with shared messaging operated by its platform on-call. The Payments service team has separate development and production landing zones. The team requests a production database for `checkout-api` and a stream for order events.
+**Enterprise example.** A fictional company runs a platform AKS fleet, with shared messaging operated by its platform on-call. Its network team owns an existing connectivity subscription and hub. The approved AKS spokes connect to that hub, and the build and workload teams use the existing registry. The Payments service team has separate development and production landing zones. The team requests a production database for `checkout-api` and a stream for order events.
 
 | Destination alias | Owner | Example placement and handoff |
 | --- | --- | --- |
@@ -55,6 +73,6 @@ Quota, retention and restore targets, teardown owner and expiry:
 
 The service team selects its service, environment and offering. The approved Git metadata supplies owner, repository and destination. Reviewers can trace the request to the applicable security policy, cost center and pager before it is provisioned. Use the example to review the operating model. The reference Terraform setup takes one subscription ID, and the multi-subscription mappings describe the enterprise adoption path.
 
-## 4. Hand off to the installer
+## 5. Hand off to the installer
 
 Check that someone can name the owner, target environment, approved access and budget for the example request. For the demo, copy the sandbox Terraform example, replace its placeholder values, review the team definitions, then return to the [AKS preflight and bootstrap steps](getting-started.md#4-cloud-aks-phase-4). For an enterprise installation, use the completed worksheet to register the approved landing zones and establish the platform's review and provisioning responsibilities.
