@@ -30,6 +30,7 @@ shape, with a D- or F-entry.
 | A changed Argo CD setting never reaches the cluster | Argo CD's own values are bootstrap-owned, not reconciled from Git | `make kind-sync` re-applies them | D-073 |
 | Each `kind-up` adds another Gitea webhook | Gitea inserts a new hook on every create call | The seed looks hooks up first and removes duplicates | D-066 |
 | A local file you didn't mean to share appears in the in-cluster repo | Older bootstrap versions published untracked files | Only files Git tracks are published; `git add` a new file to include it | D-066 |
+| `make kind-up` fails after 10 minutes with `Deployment/argocd/argocd-redis not ready ... Available: 0/1` on a fresh CI runner, and a re-run passes | Likely a stalled anonymous image pull: the chart's default Redis image was the platform's only image from ECR Public | Redis is pinned to a Chainguard image by digest. If it recurs, the CI diagnostics step prints the pod's events | D-090 |
 
 ## Policy and supply chain (Kyverno, cosign, GHCR)
 
