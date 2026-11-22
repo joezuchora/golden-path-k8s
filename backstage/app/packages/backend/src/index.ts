@@ -20,6 +20,8 @@ backend.add(import('@backstage/plugin-scaffolder-backend'));
 backend.add(
   import('@backstage/plugin-scaffolder-backend-module-notifications'),
 );
+// Dependency catalog (D-101): dependency:renderRequest, a local-only, dry-run-capable action.
+backend.add(import('./dependencyCatalog'));
 
 // techdocs plugin
 backend.add(import('@backstage/plugin-techdocs-backend'));

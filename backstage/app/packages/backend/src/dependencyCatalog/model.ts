@@ -88,13 +88,18 @@ export type DependencyRequestErrorCode =
   | 'unknown-destination'
   | 'destination-not-approved';
 
-/** A rejected request. The message says what failed, why, and the fix. */
+const DENIALS: readonly DependencyRequestErrorCode[] = ['unauthorized', 'destination-not-approved'];
+
+/**
+ * A rejected request. The message says what failed, why, and the fix. The name is Backstage's error name for the
+ * case, so the backend's error handler answers 403 for a denial and 400 for anything else.
+ */
 export class DependencyRequestError extends Error {
   readonly code: DependencyRequestErrorCode;
 
   constructor(code: DependencyRequestErrorCode, message: string) {
     super(`${message} See backstage/app/README.md#dependency-requests.`);
-    this.name = 'DependencyRequestError';
+    this.name = DENIALS.includes(code) ? 'NotAllowedError' : 'InputError';
     this.code = code;
   }
 }

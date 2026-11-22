@@ -187,6 +187,15 @@ catalog:
       target: ../../catalog/demo-entities.yaml
       rules:
         - allow: [Component, User, Group]
+    - type: file
+      target: ../../catalog/request-database.yaml
+      rules:
+        - allow: [Template]
+
+# Dependency catalog (D-101). sandbox: the one-subscription reference deployment; enterprise: the simulated
+# per-team landing-zone layout. The request file is identical in both; only the backend's resolved destination differs.
+dependencyCatalog:
+  placementProfile: sandbox
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
