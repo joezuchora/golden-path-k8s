@@ -21,6 +21,15 @@ for profile in kind aks; do
 done
 
 fail=0
+# The image-admission fixtures are exactly the CI-built images in images.env (D-069, D-095), so a refresh can't leave a
+# policy test on a stale digest. Both the kind and the AKS suite read ../image-admission/resources.yaml.
+envf="$ROOT/tests/e2e/lib/images.env"; fixtures="$T/image-admission/resources.yaml"
+for v in HELLO_SIGNED HELLO_UNSIGNED HELLO_BRANCH_SIGNED; do
+  ref="$(sed -n "s/^$v=//p" "$envf" | tr -d '\r')"
+  grep -qF "image: \"$ref\"" "$fixtures" || { echo "FAIL $fixtures doesn't use $v from images.env (${ref:-unset})"; fail=1; }
+done
+stale="$(grep -oE 'ghcr\.io/[^"]+@sha256:[0-9a-f]{64}' "$fixtures" | grep -vxF -f <(sed -n 's/^HELLO_[A-Z_]*=//p' "$envf" | tr -d '\r') || true)"
+[ -z "$stale" ] || { echo "FAIL $fixtures uses images not in images.env: $stale"; fail=1; }
 names="$(cat "$R/cluster.yaml" "$R/team-a-kind.yaml" | yq -N 'select(.apiVersion == "policies.kyverno.io/v1") | .metadata.name' | sort -u)"
 for n in $names; do
   base="${n%-team-a}"; base="${base%-pods}"; base="${base/derive-labels/ownership-labels}"            # per-team instances are tested under their base name

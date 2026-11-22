@@ -5,7 +5,7 @@ metadata:
   name: signed
   namespace: team-a-dev
   ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: hello-1, uid: 00000000-0000-0000-0000-000000000001, controller: true}]
-spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:8aa17f849f231180008208608fecd7ca6dca46c76eafdb9aaf33febfdcacdd42"}]}
+spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:9c122189e7fb58de12c284967fa78eb919f9b29e90f11d7e72ff7e4acda62018"}]}
 ---
 apiVersion: v1
 kind: Pod
@@ -13,4 +13,14 @@ metadata:
   name: unsigned
   namespace: team-a-dev
   ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: hello-2, uid: 00000000-0000-0000-0000-000000000002, controller: true}]
-spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello-unsigned@sha256:e3e1d6165b54646f57df02c7671d504c99ae06a30f511d34e2679cc5da606978"}]}
+spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello-unsigned@sha256:46948966638435dccc7f28ceb2fbf5ca0fc948acda2f7ecb9799a263e639fbda"}]}
+---
+# Signed by reusable-build-sign, but from the branch phase-3-kind-platform (HELLO_BRANCH_SIGNED, D-095): kind accepts
+# this repo's branch refs so a platform PR can prove itself (D-055); AKS accepts only refs/heads/main and v1 tags.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: branch-signed
+  namespace: team-a-dev
+  ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: hello-3, uid: 00000000-0000-0000-0000-000000000003, controller: true}]
+spec: {containers: [{name: app, image: "ghcr.io/joezuchora/golden-path-k8s/hello@sha256:8aa17f849f231180008208608fecd7ca6dca46c76eafdb9aaf33febfdcacdd42"}]}

@@ -34,5 +34,9 @@ the reusable workflow, its tags, the caller allowlists and branch protection is 
 (Phase 6), together with what happens when a repo is renamed or transferred.
 In this repo, `main` itself is protected by a ruleset (PR only, required checks, no force-push; D-092).
 
-**Tests.** `platform/policies/tests/image-admission/` holds two cases: a CI-signed image (pass) and an unsigned image under
-the same prefix (fail). The tests are online: they need GHCR and Rekor (F35).
+**Tests.** Two suites run the same three fixtures from `tests/e2e/lib/images.env` against each rendering of the policy
+(D-095). `platform/policies/tests/image-admission/` (kind): an image signed by CI from `main` (pass), the same app signed
+by CI from a branch (pass, because kind accepts this repo's branch refs, D-055), and an unsigned image under the same
+prefix (fail). `platform/policies/tests/image-admission-aks/` (AKS): `main` (pass), branch (fail: a disallowed signer
+ref), unsigned (fail). `make test-policies` fails if the fixtures drift from `images.env`. The tests are online: they need
+GHCR and Rekor (F35).

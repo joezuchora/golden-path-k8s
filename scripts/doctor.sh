@@ -133,7 +133,7 @@ check_github() {
   else warn "gh not installed or not logged in; can't check repo visibility (optional: GitHub CLI)"; fi
   # A public repo doesn't make its packages public (F43): prove an anonymous pull of the exact digests the journeys use.
   local envf="$ROOT/tests/e2e/lib/images.env" name ref
-  for name in HELLO_SIGNED HELLO_UNSIGNED; do
+  for name in HELLO_SIGNED HELLO_UNSIGNED HELLO_BRANCH_SIGNED; do
     ref="$(sed -n "s/^$name=//p" "$envf" 2>/dev/null)"
     case "$ref" in
       ghcr.io/*@sha256:*)

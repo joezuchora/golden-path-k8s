@@ -9,3 +9,4 @@ userinfo: userinfo.yaml
 results:
   - {policy: image-admission-team-a, resources: [signed], kind: Pod, result: pass}
   - {policy: image-admission-team-a, resources: [unsigned], kind: Pod, result: fail}
+  - {policy: image-admission-team-a, resources: [branch-signed], kind: Pod, result: pass}
