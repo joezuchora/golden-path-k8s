@@ -272,3 +272,19 @@ had stayed compatible, switching the engine before merge changed only the toolch
 registry.terraform.io), the scripts that call the CLI, and the records ([ADR-0009](adr/0009-terraform-for-aks-foundations.md)).
 The license is stated, not assumed: Terraform 1.6.0 and later are under the Business Source License (F58).
 
+## 2026-11-22: Research before the identity and ingress slices (D-094 to D-098)
+
+Before building `AppIdentity` and the managed-mode gateway, three research passes read the repo and the primary sources.
+Two findings changed the order of work. The policy that keeps tenant namespaces to XRs matched only five API groups, so
+a team could have synced a raw Azure managed resource onto Crossplane's shared identity, and the policy tests passed
+because Kyverno counts an unmatched resource as passing (D-094). And the only signed fixture was branch-built, which the
+AKS rendering of image admission rejects (D-095). Both were fixed before any feature work.
+
+One decision was revisited. D-082 made each app's managed identity the Entra administrator of its own server, to avoid a
+SQL bootstrap job. Microsoft's guidance is not to use that role for regular operations (F61), so the app now gets a
+least-privilege role from a platform job that runs as the administrator (D-098); the job's design moves to the
+AppIdentity ADR. Two were kept with their reasoning made explicit: Envoy Gateway stays the managed-mode controller,
+now as a stated deviation from the blog's recommended default, application routing with the Gateway API (D-096, F59),
+and its target version is v1.10.0, whose Kubernetes support covers 1.37, with the pin moving only once our own
+conformance evidence exists (D-097, F60).
+

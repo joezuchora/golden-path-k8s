@@ -32,14 +32,15 @@ begin migration to Gateway API" (attribution corrected in D-041).
 | kube-proxy + Ingress-NGINX | Familiar | Retired and archived 2026-03-24, no security fixes (F10); iptables scale limits; Ingress API is legacy. Ruled out |
 | Istio sidecar / ambient (AKS add-on) | mTLS, rich L7 | Sidecar overhead (sidecar mode); a second control plane |
 | **AKS-native:** managed Cilium + ACNS + Envoy Gateway | Microsoft-supported CNI; OSS gateway | ACNS is a paid add-on; two components |
-| **AKS-native:** managed Cilium + application routing with Gateway API | Fully managed | Less portable; implementation details differ from kind |
+| **AKS-native:** managed Cilium + application routing with Gateway API | Fully managed; the AKS blog's recommended default ingress path (F59) | Less portable: Istio-based (`approuting-istio`), AKS-managed Gateway API CRDs only, so the CRD source differs from kind and byo (F59, D-096) |
 | BYO OSS Cilium (`network_plugin=none`) | Full Cilium: Gateway API, Hubble, L7; same as kind | Microsoft doesn't support the CNI; the team owns Cilium upgrades (the "plumbing" the blog warns about) |
 
 ## Decision
 Dual mode via `cilium_mode` (D-005):
 - `managed` (default): Azure CNI Powered by Cilium (overlay) plus a separate Gateway API controller:
-  **Envoy Gateway** (D-006). ACNS is **not** required for the baseline; it is the prerequisite for the optional
-  L7/FQDN add-on profile (D-021).
+  **Envoy Gateway** (D-006, reaffirmed in D-096 as a stated deviation from the blog's default; target version v1.10.0,
+  D-097). ACNS is **not** required for the baseline; it is the prerequisite for the optional L7/FQDN add-on profile
+  (D-021).
 - `byo`: `network_plugin=none` with OSS Cilium installed by Helm (`kubeProxyReplacement=true`, Gateway API, Hubble).
 - `kind`: OSS Cilium using the same values as `byo`.
 
