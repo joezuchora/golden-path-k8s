@@ -1,0 +1,121 @@
+# AppIdentity, local backend (kind): kind has no Microsoft Entra, so it can't create or exchange a cloud identity
+# (ADR-0008's one stated deviation). It records the federation the azure composition would create, so the e2e can check
+# real projected tokens against it: a ConfigMap with the issuers of the env's workload group, the app's ServiceAccount
+# subject and the audience. The identity Secret carries placeholder IDs and travels the same path as on AKS (composed
+# Secret, PushSecret, the team's store under appidentity-<app>, D-104), so golden-service consumes it identically.
+# Issuers and subjects come from the tenant Namespace and the local-platform EnvironmentConfig, never from the request.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: appidentity-local
+  labels: {provider: local}
+spec:
+  compositeTypeRef: {apiVersion: platform.example.org/v1, kind: AppIdentity}
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef: {name: function-go-templating}
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $xr := .observed.composite.resource }}
+            {{- $app := $xr.metadata.name }}
+            {{- $ns := $xr.metadata.namespace }}
+            {{- $er := default (dict) .extraResources }}
+            {{- $nsl := dict }}
+            {{- range (index (index $er "namespace" | default (dict)) "items" | default (list)) }}{{ $nsl = .resource.metadata.labels }}{{ end }}
+            {{- $env := dict }}
+            {{- range (index (index $er "environment" | default (dict)) "items" | default (list)) }}{{ $env = .resource.data }}{{ end }}
+            {{- $team := index $nsl "platform.example.org/team" | default "" }}
+            {{- $envName := index $nsl "platform.example.org/env" | default "" }}
+            {{- $group := index $nsl "platform.example.org/workload-group" | default "" }}
+            {{- $issuers := list }}
+            {{- if $env }}{{ range (index (default (dict) $env.workloadIssuers) $group | default (list)) }}{{ $issuers = append $issuers .issuer }}{{ end }}{{ end }}
+            {{- $tags := dict }}
+            {{- range $k := list "team" "owner" "cost-center" "env" "data-classification" "contract-version" }}
+            {{- $key := printf "platform.example.org/%s" $k }}
+            {{- if hasKey $nsl $key }}{{ $_ := set $tags $key (index $nsl $key) }}{{ end }}
+            {{- end }}
+            {{- $_ := set $tags "platform.example.org/app" $app }}
+            {{- $subject := printf "system:serviceaccount:%s-%s:%s" $team $envName $app }}
+            {{- $key := printf "appidentity-%s" $app }}
+            ---
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              namespace:
+                apiVersion: v1
+                kind: Namespace
+                matchName: {{ $ns | quote }}
+              environment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: local-platform
+            {{- /* Once Crossplane has supplied the extra resources, a missing input is a configuration error: fail, so
+            the identity already composed is kept rather than deleted for dropping out of the desired state (D-104). */}}
+            {{- if hasKey . "extraResources" }}
+            {{- $missing := list }}
+            {{- if not (and $team $envName $group) }}{{ $missing = append $missing (printf "team, env and workload-group labels on Namespace %s" $ns) }}{{ end }}
+            {{- if not $env }}{{ $missing = append $missing "EnvironmentConfig local-platform" }}{{ end }}
+            {{- if and $env (not $issuers) }}{{ $missing = append $missing (printf "workload clusters for group %q in EnvironmentConfig local-platform" $group) }}{{ end }}
+            {{- if $missing }}{{ fail (printf "AppIdentity %s/%s can't be composed: missing %s. Fix: check the tenancy render and the platform's EnvironmentConfig (D-104)" $ns $app (join "; " $missing)) }}{{ end }}
+            {{- end }}
+            {{- if and $team $envName $issuers }}
+            ---
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: {{ printf "%s-federation" $app }}
+              labels: {{ toJson $tags }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: federation
+            data:
+              subject: {{ $subject | quote }}
+              audience: api://AzureADTokenExchange
+              issuers: {{ join "\n" $issuers | quote }}
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ printf "%s-appidentity" $app }}
+              labels: {{ toJson $tags }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: identity-secret
+            type: Opaque
+            stringData:
+              clientId: local
+              tenantId: {{ $env.tenantId | default "local" | quote }}
+            ---
+            apiVersion: external-secrets.io/v1alpha1
+            kind: PushSecret
+            metadata:
+              name: {{ $key }}
+              labels: {{ toJson $tags }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: identity
+            spec:
+              refreshInterval: 10s
+              deletionPolicy: Delete
+              updatePolicy: Replace
+              secretStoreRefs: [{name: vault, kind: SecretStore}]
+              selector:
+                secret: {name: {{ printf "%s-appidentity" $app }}}
+              data:
+                {{- range $k := list "clientId" "tenantId" }}
+                - match:
+                    secretKey: {{ $k }}
+                    remoteRef: {remoteKey: {{ $key }}, property: {{ $k }}}
+                {{- end }}
+            ---
+            apiVersion: {{ $xr.apiVersion }}
+            kind: {{ $xr.kind }}
+            status:
+              identitySecret: {{ $key }}
+              subject: {{ $subject | quote }}
+              issuers: {{ toJson $issuers }}
+            {{- end }}
+    - step: ready
+      functionRef: {name: function-auto-ready}

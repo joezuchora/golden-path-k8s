@@ -107,19 +107,33 @@ for c in cloudnative-pg external-secrets; do
   helm template x "platform/components/$c" --include-crds -f "platform/components/$c/values.yaml" 2>/dev/null | yq 'select(.kind == "CustomResourceDefinition")' >"$S/crds-$c.yaml"
 done
 helm template xp "$xp" -f "$xp/values-managed.yaml" -f scripts/ci/platform-values-aks.yaml --show-only templates/platform.yaml | yq 'select(.kind == "Provider")' >"$S/providers.yaml"
-for prov in local azure; do
-  [ -f "$xp/compositions/$prov/postgresqlinstance.yaml" ] || fail "XRD postgresqlinstances has no $prov composition (CLAUDE.md: every XRD needs azure and local)"
+# Every XRD (one composition file per profile, named after it) has both compositions and both render tests.
+for x in $(ls "$xp"/compositions/*/*.yaml | xargs -n1 basename | sed 's/\.yaml$//' | sort -u); do
+  for prov in local azure; do
+    [ -f "$xp/compositions/$prov/$x.yaml" ] || fail "XRD $x has no $prov composition (CLAUDE.md: every XRD needs azure and local)"
+    [ -f "$xp/render-tests/$x/$prov/expected.yaml" ] || fail "XRD $x has no render test render-tests/$x/$prov/expected.yaml"
+  done
 done
+# render-tests/<xrd>/<case>/: the case's profile is its name up to the first "-". A case with expected-error.txt must
+# fail to render, with that text in the error (a guard that keeps composed resources on missing inputs, D-104).
 if docker info >/dev/null 2>&1; then
-  for g in "$xp"/render-tests/*/; do
-    g="${g%/}"; prov="$(basename "$g")"
-    args=(--required-resources "$g/required.yaml"); [ -f "$g/observed.yaml" ] && args+=(--observed-resources "$g/observed.yaml")
-    if ! crossplane composition render "$g/xr.yaml" "$xp/compositions/$prov/postgresqlinstance.yaml" "$xp/render-tests/functions.yaml" \
-         "${args[@]}" >"$W/render-$prov.yaml" 2>"$W/err"; then fail "composition render ($prov): $(tail -3 "$W/err")"; continue; fi
-    if diff -u "$g/expected.yaml" "$W/render-$prov.yaml" >"$W/diff"; then pass "composition render ($prov) matches render-tests/$prov/expected.yaml"
-    else fail "composition render ($prov) differs from its golden file:"; head -30 "$W/diff" | sed 's/^/        /'; fi
-    if out="$(crossplane resource validate "$S" "$W/render-$prov.yaml" 2>&1)"; then pass "crossplane resource validate ($prov): $(echo "$out" | tail -1)"
-    else fail "crossplane resource validate ($prov):"; echo "$out" | grep -E '^\[x\]|error' | head -10 | sed 's/^/        /'; fi
+  for g in "$xp"/render-tests/*/*/; do
+    g="${g%/}"; c="$(basename "$g")"; x="$(basename "$(dirname "$g")")"; prov="${c%%-*}"; t="$x/$c"
+    render=(crossplane composition render "$g/xr.yaml" "$xp/compositions/$prov/$x.yaml" "$xp/render-tests/functions.yaml"
+            --required-resources "$g/required.yaml")
+    [ -f "$g/observed.yaml" ] && render+=(--observed-resources "$g/observed.yaml")
+    if [ -f "$g/expected-error.txt" ]; then
+      want="$(tr -d '\r' <"$g/expected-error.txt")"
+      if "${render[@]}" >/dev/null 2>"$W/err"; then fail "composition render ($t) succeeded; it must fail with: $want"
+      elif grep -qF "$want" "$W/err"; then pass "composition render ($t) fails as expected ($want)"
+      else fail "composition render ($t) failed with another error: $(tail -2 "$W/err")"; fi
+      continue
+    fi
+    if ! "${render[@]}" >"$W/render-$x-$c.yaml" 2>"$W/err"; then fail "composition render ($t): $(tail -3 "$W/err")"; continue; fi
+    if diff -u "$g/expected.yaml" "$W/render-$x-$c.yaml" >"$W/diff"; then pass "composition render ($t) matches render-tests/$t/expected.yaml"
+    else fail "composition render ($t) differs from its golden file:"; head -30 "$W/diff" | sed 's/^/        /'; fi
+    if out="$(crossplane resource validate "$S" "$W/render-$x-$c.yaml" 2>&1)"; then pass "crossplane resource validate ($t): $(echo "$out" | tail -1)"
+    else fail "crossplane resource validate ($t):"; echo "$out" | grep -E '^\[x\]|error' | head -10 | sed 's/^/        /'; fi
   done
 else skip "crossplane composition render and resource validate need Docker (F26): not run"; fi
 
@@ -174,7 +188,7 @@ done
 # Tenant-scoped provider credentials (D-099, ADR-0013). A ClusterProviderConfig is reachable from any namespace (F63), so
 # none may exist anywhere; each tenant namespace gets one ProviderConfig "tenant" with its own tenant's identity, and every
 # azure managed resource names it.
-cpcs="$(cat "$W"/*.yaml "$CPC"/render-tests/*/expected.yaml | yq -N 'select(.kind == "ClusterProviderConfig") | .metadata.name' 2>/dev/null | grep -v '^---' || true)"
+cpcs="$(cat "$W"/*.yaml "$CPC"/render-tests/*/*/expected.yaml | yq -N 'select(.kind == "ClusterProviderConfig") | .metadata.name' 2>/dev/null | grep -v '^---' || true)"
 [ -z "$cpcs" ] && pass "no ClusterProviderConfig in any render (D-099)" || fail "ClusterProviderConfig rendered: $cpcs (D-099: use the tenant's namespaced ProviderConfig)"
 pcbad=0
 for f in "$W"/tenancy-*-control-plane-managed.yaml; do
@@ -184,8 +198,8 @@ for f in "$W"/tenancy-*-control-plane-managed.yaml; do
   [ "$got" = "$want" ] || { fail "$(basename "$f"): ProviderConfigs '$got', want one 'tenant' per tenant namespace with its own identity: '$want'"; pcbad=1; }
 done
 [ $pcbad = 0 ] && pass "each tenant namespace has one ProviderConfig 'tenant' with its own provider identity (D-099)"
-mrbad="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | select(.spec.providerConfigRef.kind != "ProviderConfig" or .spec.providerConfigRef.name != "tenant") | .kind + "/" + .metadata.name' "$CPC"/render-tests/azure/expected.yaml)"
-n="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | .kind' "$CPC"/render-tests/azure/expected.yaml | grep -c . || true)"
+mrbad="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | select(.spec.providerConfigRef.kind != "ProviderConfig" or .spec.providerConfigRef.name != "tenant") | .kind + "/" + .metadata.name' "$CPC"/render-tests/*/azure/expected.yaml)"
+n="$(yq -N 'select(.apiVersion | test("\.upbound\.io/")) | .kind' "$CPC"/render-tests/*/azure/expected.yaml | grep -c . || true)"
 [ -z "$mrbad" ] && [ "${n:-0}" -gt 0 ] && pass "azure composition: all $n managed resources use ProviderConfig/tenant (D-099)" \
   || fail "azure composition managed resources not on ProviderConfig/tenant: ${mrbad:-none rendered}"
 # Every provider's service account is federated to every tenant's provider identity: the two lists must match.

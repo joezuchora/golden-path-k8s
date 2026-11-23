@@ -19,3 +19,23 @@ spec:
   dataFrom:
     - extract: {key: {{ . }}}
 {{- end }}
+{{- if .Values.identity.enabled }}
+---
+# The app's identity (ADR-0013): client and tenant IDs from the AppIdentity XR "{{ .Values.app }}", which pushes them to the
+# team's store under appidentity-{{ .Values.app }} (D-104). On kind they are placeholders: there is no Entra (ADR-0008).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.app }}-identity
+  labels:
+    {{- include "gs.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 15s
+  secretStoreRef: {kind: SecretStore, name: {{ .Values.platform.secretStore }}}
+  target:
+    name: {{ .Values.app }}-identity
+    creationPolicy: Owner
+    deletionPolicy: Delete
+  dataFrom:
+    - extract: {key: appidentity-{{ .Values.app }}}
+{{- end }}

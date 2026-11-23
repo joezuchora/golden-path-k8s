@@ -90,6 +90,33 @@ spec:
         rollout and health that the platform tracks per Deployment (ADR-0007), and nothing recreates them. Fix: ship a
         Deployment (or Job) through the golden-service chart. Docs: {{ $d }}/require-controller.md'
 ---
+# An app's cloud identity is federated to the ServiceAccount named after the app (ADR-0008, ADR-0013), so a pod runs as
+# its own app's ServiceAccount and no other: another workload in the namespace can't borrow the app's identity by naming
+# its ServiceAccount (D-104). golden-service sets both from the same `app:` value.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: serviceaccount-matches-app
+  labels: {platform.example.org/policy-set: v1}
+  annotations: {platform.example.org/docs: {{ $d }}/serviceaccount-matches-app.md}
+spec:
+  failurePolicy: Fail
+  validationActions: [Deny]
+  {{- include "kp.match" . }}
+  variables:
+    - name: app
+      expression: "has(object.metadata.labels) && 'platform.example.org/app' in object.metadata.labels ? object.metadata.labels['platform.example.org/app'] : ''"
+    - name: sa
+      expression: "has(object.spec.serviceAccountName) && object.spec.serviceAccountName != '' ? object.spec.serviceAccountName : 'default'"
+  validations:
+    - expression: "variables.app != '' && variables.sa == variables.app"
+      messageExpression: >-
+        'serviceaccount-matches-app: ' + object.metadata.name + ' runs as ServiceAccount ' + variables.sa + ' but its
+        app label (platform.example.org/app) is ' + (variables.app == '' ? 'missing' : variables.app) + '. Why: the cloud
+        identity of an app is federated to the ServiceAccount named after the app, so running under another ServiceAccount
+        would act as another app. Fix: deploy through golden-service, which sets the ServiceAccount and the label from
+        the same app value. Docs: {{ $d }}/serviceaccount-matches-app.md'
+---
 # Tenant namespaces on the control plane (tenant-<team>-<env>) hold a team's XRs and nothing else (D-024). The team's
 # AppProject may sync there, so anything else Argo CD applies there is rejected. It matches every API group, so the
 # check is an allow list: a raw managed resource or a CloudNativePG cluster is denied like a Deployment (D-094). Since
@@ -129,6 +156,13 @@ spec:
         dependency requests (for example PostgreSQLInstance) next to platform credentials; apps run in <team>-<env>.
         Fix: move this manifest out of xrs/<env>/ in your deploy repo, into apps/<app>/<env>.yaml values.
         Docs: {{ $d }}/tenant-namespace-xrs-only.md'
+    # Connection details and identity metadata share the team's secret store: a database under its own name, an app
+    # identity under appidentity-<app> (D-104). A database with that prefix would collide with an app's identity.
+    - expression: "object.kind != 'PostgreSQLInstance' || !object.metadata.name.startsWith('appidentity-')"
+      messageExpression: >-
+        'tenant-namespace-xrs-only: PostgreSQLInstance ' + object.metadata.name + ' starts with appidentity-. Why: the
+        team secret store keeps app identities under appidentity-<app>, so this database would collide with one. Fix:
+        rename the database. Docs: {{ $d }}/tenant-namespace-xrs-only.md'
 ---
 # Hostnames belong to tenants (Gateway API guidance on hostname hijacking): every HTTPRoute host in an app namespace must
 # end its first label with -<namespace>, so two teams' same-named apps get distinct hosts and no team can claim another's.

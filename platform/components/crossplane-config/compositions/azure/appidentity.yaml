@@ -1,0 +1,179 @@
+# AppIdentity, azure backend (AKS): the app's own user-assigned managed identity (ADR-0008), in the tenant's resource
+# group, created with the tenant's own provider credentials (ProviderConfig "tenant", D-099). D-104, ADR-0013:
+# - One federated credential per workload cluster in the env's group (the tenant Namespace's workload-group label, D-079),
+#   subject system:serviceaccount:<team>-<env>:<app>, audience api://AzureADTokenExchange. Issuers come from the
+#   azure-platform EnvironmentConfig that infra/aks/aks.sh writes, never from the request.
+# - Credentials on one identity are created one after another: concurrent writes fail with 409 (F62). A credential is
+#   rendered once it exists, or when it's the first, or when the one before it (sorted by cluster) is Ready.
+# - The client and tenant IDs travel like a database's connection details: a composed Secret (one key, `identity`, JSON),
+#   a PushSecret to the team's store under appidentity-<app>, and golden-service's ExternalSecret (D-104).
+# - The principal ID, which database roles bind to (D-098, D-102), is in the XR's status.
+# - Database access isn't granted here: the database names its owning app (PostgreSQLInstance.spec.app, D-102).
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: appidentity-azure
+  labels: {provider: azure}
+spec:
+  compositeTypeRef: {apiVersion: platform.example.org/v1, kind: AppIdentity}
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef: {name: function-go-templating}
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $xr := .observed.composite.resource }}
+            {{- $app := $xr.metadata.name }}
+            {{- $ns := $xr.metadata.namespace }}
+            {{- $observed := .observed.resources | default (dict) }}
+            {{- $er := default (dict) .extraResources }}
+            {{- $nsl := dict }}
+            {{- range (index (index $er "namespace" | default (dict)) "items" | default (list)) }}{{ $nsl = .resource.metadata.labels }}{{ end }}
+            {{- $env := dict }}
+            {{- range (index (index $er "environment" | default (dict)) "items" | default (list)) }}{{ $env = .resource.data }}{{ end }}
+            {{- $team := index $nsl "platform.example.org/team" | default "" }}
+            {{- $envName := index $nsl "platform.example.org/env" | default "" }}
+            {{- $group := index $nsl "platform.example.org/workload-group" | default "" }}
+            {{- $rg := "" }}
+            {{- $clusters := list }}
+            {{- if $env }}
+            {{- $rg = index (default (dict) $env.tenantResourceGroups) $ns | default "" }}
+            {{- $clusters = index (default (dict) $env.workloadIssuers) $group | default (list) }}
+            {{- end }}
+            {{- $tags := dict }}
+            {{- range $k := list "team" "owner" "cost-center" "env" "data-classification" "contract-version" }}
+            {{- $key := printf "platform.example.org/%s" $k }}
+            {{- if hasKey $nsl $key }}{{ $_ := set $tags $k (index $nsl $key) }}{{ end }}
+            {{- end }}
+            {{- $_ := set $tags "app" $app }}
+            {{- if $env }}{{ $_ := set $tags "environment-id" ($env.environmentId | default "") }}{{ end }}
+            {{- $labels := dict "platform.example.org/app" $app }}
+            {{- $pc := dict "kind" "ProviderConfig" "name" "tenant" }}
+            {{- $subject := printf "system:serviceaccount:%s-%s:%s" $team $envName $app }}
+            {{- $key := printf "appidentity-%s" $app }}
+            ---
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              namespace:
+                apiVersion: v1
+                kind: Namespace
+                matchName: {{ $ns | quote }}
+              environment:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: azure-platform
+            {{- /* Once Crossplane has supplied the extra resources, a missing input is a configuration error: fail, so
+            the identity already composed is kept rather than deleted for dropping out of the desired state (D-104). */}}
+            {{- if hasKey . "extraResources" }}
+            {{- $missing := list }}
+            {{- if not (and $team $envName $group) }}{{ $missing = append $missing (printf "team, env and workload-group labels on Namespace %s" $ns) }}{{ end }}
+            {{- if not $env }}{{ $missing = append $missing "EnvironmentConfig azure-platform" }}{{ end }}
+            {{- if not $rg }}{{ $missing = append $missing (printf "the tenant resource group for %s in EnvironmentConfig azure-platform" $ns) }}{{ end }}
+            {{- if and $env (not $clusters) }}{{ $missing = append $missing (printf "workload clusters for group %q in EnvironmentConfig azure-platform" $group) }}{{ end }}
+            {{- if $missing }}{{ fail (printf "AppIdentity %s/%s can't be composed: missing %s. Fix: check the tenancy render and the platform's EnvironmentConfig (D-104)" $ns $app (join "; " $missing)) }}{{ end }}
+            {{- end }}
+            {{- if and $team $envName $rg $clusters }}
+            ---
+            apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+            kind: UserAssignedIdentity
+            metadata:
+              name: {{ $app }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: identity
+            spec:
+              providerConfigRef: {{ toJson $pc }}
+              forProvider:
+                name: {{ printf "id-%s" $app | quote }}   # required by the provider schema (validated in make validate)
+                location: {{ $env.location | quote }}
+                resourceGroupName: {{ $rg | quote }}
+                tags: {{ toJson $tags }}
+            {{- $issuers := list }}
+            {{- $prevReady := true }}
+            {{- $sorted := list }}
+            {{- range $c := $clusters }}{{ $sorted = append $sorted $c.cluster }}{{ end }}
+            {{- range $name := sortAlpha $sorted }}
+            {{- $c := dict }}
+            {{- range $clusters }}{{ if eq .cluster $name }}{{ $c = . }}{{ end }}{{ end }}
+            {{- $rname := printf "federation-%s" $name }}
+            {{- $exists := hasKey $observed $rname }}
+            {{- if or $exists $prevReady }}
+            {{- $issuers = append $issuers $c.issuer }}
+            ---
+            apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+            kind: FederatedIdentityCredential
+            metadata:
+              name: {{ printf "%s-%s" $app $name | trunc 63 | trimSuffix "-" }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $rname }}
+                crossplane.io/external-name: {{ $name | quote }}
+            spec:
+              providerConfigRef: {{ toJson $pc }}
+              forProvider:
+                audience: [api://AzureADTokenExchange]
+                issuer: {{ $c.issuer | quote }}
+                subject: {{ $subject | quote }}
+                userAssignedIdentityIdSelector: {matchControllerRef: true}
+            {{- end }}
+            {{- $ready := false }}
+            {{- with (index $observed $rname) }}{{ range (.resource.status.conditions | default (list)) }}{{ if and (eq .type "Ready") (eq .status "True") }}{{ $ready = true }}{{ end }}{{ end }}{{ end }}
+            {{- $prevReady = $ready }}
+            {{- end }}
+            {{- $clientId := "" }}
+            {{- $principalId := "" }}
+            {{- with (index $observed "identity") }}
+            {{- $clientId = .resource.status.atProvider.clientId | default "" }}
+            {{- $principalId = .resource.status.atProvider.principalId | default "" }}
+            {{- end }}
+            {{- if $clientId }}
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ printf "%s-appidentity" $app }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: identity-secret
+            type: Opaque
+            stringData:
+              identity: {{ dict "clientId" $clientId "tenantId" ($env.tenantId | default "") | toJson | quote }}
+            ---
+            apiVersion: external-secrets.io/v1alpha1
+            kind: PushSecret
+            metadata:
+              name: {{ $key }}
+              labels: {{ toJson $labels }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: identity-push
+            spec:
+              refreshInterval: 1m
+              deletionPolicy: Delete
+              updatePolicy: Replace
+              secretStoreRefs: [{name: vault, kind: SecretStore}]
+              selector:
+                secret: {name: {{ printf "%s-appidentity" $app }}}
+              data:
+                - match:
+                    secretKey: identity
+                    remoteRef: {remoteKey: {{ $key }}}
+            {{- end }}
+            ---
+            apiVersion: {{ $xr.apiVersion }}
+            kind: {{ $xr.kind }}
+            status:
+              subject: {{ $subject | quote }}
+              issuers: {{ toJson $issuers }}
+              {{- if $clientId }}
+              identitySecret: {{ $key }}
+              clientId: {{ $clientId | quote }}
+              principalId: {{ $principalId | quote }}
+              {{- end }}
+            {{- end }}
+    - step: ready
+      functionRef: {name: function-auto-ready}

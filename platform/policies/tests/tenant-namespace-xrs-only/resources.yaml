@@ -66,3 +66,20 @@ metadata:
   namespace: tenant-team-a-dev
   annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:postgresql.cnpg.io/Cluster:tenant-team-a-dev/sneaky-cnpg'}
 spec: {instances: 1, storage: {size: 64Gi}}
+---
+# D-104: app identities are kept in the team's store under appidentity-<app>, so a database can't take that prefix.
+apiVersion: platform.example.org/v1
+kind: PostgreSQLInstance
+metadata:
+  name: appidentity-hello
+  namespace: tenant-team-a-dev
+  annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:platform.example.org/PostgreSQLInstance:tenant-team-a-dev/appidentity-hello'}
+spec: {storageGB: 1}
+---
+apiVersion: platform.example.org/v1
+kind: AppIdentity
+metadata:
+  name: hello
+  namespace: tenant-team-a-dev
+  annotations: {argocd.argoproj.io/tracking-id: 'team-a-xrs-dev:platform.example.org/AppIdentity:tenant-team-a-dev/hello'}
+spec: {}

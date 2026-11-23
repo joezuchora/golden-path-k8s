@@ -1,0 +1,4 @@
+apiVersion: platform.example.org/v1
+kind: AppIdentity
+metadata: {name: hello, namespace: tenant-team-a-dev}
+spec: {}

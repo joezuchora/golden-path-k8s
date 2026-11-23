@@ -2,3 +2,4 @@
 platform:
   domain: apps.kind.test
   dependencyEgress: inCluster
+  identityEgress: none         # kind has no Microsoft Entra ID; the identity Secret carries placeholders (ADR-0008)

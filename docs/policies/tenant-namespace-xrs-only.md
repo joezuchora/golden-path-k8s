@@ -14,10 +14,14 @@ because a deny list misses new kinds. A raw managed resource bypasses the XR API
 D-099 it also ran on a provider configuration that could reach every tenant's resource group. Since D-099 Crossplane uses
 only the tenant's own credentials in a tenant namespace, so this policy is the first of two layers, not the only one.
 
+**Also checked.** A `PostgreSQLInstance` can't be named `appidentity-<anything>`: the team's secret store keeps
+each app's identity metadata under that prefix (D-104).
+
 **Fix.** In your deploy repo, `xrs/<env>/` holds only XRs. Move anything else into your app's golden-service values under
 `apps/<app>/<env>.yaml`.
 
 **Tests.** `platform/policies/tests/tenant-namespace-xrs-only/` covers an XR (pass); a Deployment, a ConfigMap, an Azure
-`FederatedIdentityCredential` and `FlexibleServer`, and a CloudNativePG `Cluster` (fail); and the platform's own render
+`FederatedIdentityCredential` and `FlexibleServer`, and a CloudNativePG `Cluster` (fail); an `AppIdentity` (pass) and a
+`PostgreSQLInstance` named `appidentity-hello` (fail); and the platform's own render
 (skip). On kind, J2 cases (b) and (d) merge a Deployment and a CloudNativePG `Cluster` into `xrs/dev/` and check both
 are denied with an actionable commit status.
