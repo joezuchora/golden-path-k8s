@@ -8,7 +8,8 @@
 #   2 citations   every F-, D- and ADR- reference resolves; every external URL in README, the contract and the
 #                 frameworks docs matches an F-entry source; contract v1 states the D-027 network set and the
 #                 D-022 identity promise.
-#   3 links       relative links and anchors resolve; external URLs answer 2xx/3xx (skip with OFFLINE=1).
+#   3 links       relative links and anchors resolve; external URLs answer 2xx/3xx (skip with OFFLINE=1);
+#                 429, 5xx and timeouts are retried with backoff before they fail (D-106).
 #   4 mermaid     every ```mermaid block renders with a pinned mermaid-cli. If the CLI can't run, the result is
 #                 UNVERIFIED, which fails the gate.
 #   6 references  every repo path and `make` target named in a current doc exists (history docs are excluded).
@@ -298,15 +299,35 @@ if [ "${OFFLINE:-0}" = "1" ]; then
   echo "SKIP 3 links: external (OFFLINE=1). Not a pass."
   status=1
 else
-  bad=0; n=0
+  # A definite answer (e.g. 404) fails at once. Rate limits, server errors and no response (429, 5xx, 000) are
+  # retried LINK_RETRIES times with 5/10/20 s backoff, or the server's Retry-After if longer, capped at 60 s (D-106).
+  LINK_RETRIES="${LINK_RETRIES:-3}"
+  hdr="$(mktemp)"
+  probe() { curl -s -o /dev/null -L --max-time 25 -A 'verify-docs' -D "$hdr" -w '%{http_code}' "$@" || true; }
+  bad=0; n=0; retried=0
   while IFS= read -r url; do
     [ -z "$url" ] && continue
-    n=$((n+1))
-    code="$(curl -s -o /dev/null -L --max-time 25 -A 'verify-docs' -w '%{http_code}' -I "$url" || true)"
-    case "$code" in 2*|3*) ;; *) code="$(curl -s -o /dev/null -L --max-time 25 -A 'verify-docs' -w '%{http_code}' "$url" || true)";; esac
-    case "$code" in 2*|3*) ;; *) echo "     - $url -> HTTP $code"; bad=$((bad+1));; esac
+    n=$((n+1)); attempt=0
+    while :; do
+      code="$(probe -I "$url")"
+      case "$code" in 2*|3*) ;; *) code="$(probe "$url")";; esac
+      case "$code" in 429|5??|000) ;; *) break;; esac
+      [ "$attempt" -ge "$LINK_RETRIES" ] && break
+      attempt=$((attempt+1))
+      delay=$((5 << (attempt-1)))
+      retry_after="$(tr -d '\r' <"$hdr" | sed -n 's/^[Rr]etry-[Aa]fter: *\([0-9][0-9]*\) *$/\1/p' | tail -1)"
+      [ -n "$retry_after" ] && [ "$retry_after" -gt "$delay" ] && delay="$retry_after"
+      [ "$delay" -gt 60 ] && delay=60
+      sleep "$delay"
+    done
+    [ "$attempt" -gt 0 ] && retried=$((retried+1))
+    case "$code" in
+      2*|3*) [ "$attempt" -gt 0 ] && echo "     ~ $url -> HTTP $code after $attempt retries" ;;
+      *) echo "     - $url -> HTTP $code (after $attempt retries)"; bad=$((bad+1)) ;;
+    esac
   done < <(printf '%s\n' "$py_out" | sed -n 's/^URL //p')
-  if [ $bad -eq 0 ]; then echo "PASS 3 links: external ($n URLs)"; else echo "FAIL 3 links: external ($bad of $n failed)"; status=1; fi
+  rm -f "$hdr"
+  if [ $bad -eq 0 ]; then echo "PASS 3 links: external ($n URLs, $retried retried)"; else echo "FAIL 3 links: external ($bad of $n failed)"; status=1; fi
 fi
 
 # ---- 4 mermaid
