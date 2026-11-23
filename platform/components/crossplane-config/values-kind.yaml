@@ -1,1 +1,4 @@
 compositionProvider: local
+# kubeadm's default service-account issuer, which kind keeps; J5 checks real tokens against it (D-104).
+local:
+  issuer: https://kubernetes.default.svc.cluster.local

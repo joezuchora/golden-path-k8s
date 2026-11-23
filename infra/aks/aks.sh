@@ -163,7 +163,9 @@ EOF
       data: {environmentId: $r[0].environment.environment_id, location: $r[0].environment.location, tenantId: $r[0].environment.tenant_id,
              postgresSubnetId: $pg.subnet_id,
              tenantResourceGroups: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.resource_group}) | from_entries),
-             tenantPostgresDnsZones: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.postgresPrivateDnsZoneId}) | from_entries)}}' \
+             tenantPostgresDnsZones: ($r[0].tenants | to_entries | map({key: .value.tenant_namespace, value: .value.postgresPrivateDnsZoneId}) | from_entries),
+             workloadIssuers: ($r[0].clusters.workloads | to_entries | group_by(.value.group)
+               | map({key: .[0].value.group, value: (map({cluster: .key, issuer: .value.issuer}) | sort_by(.cluster))}) | from_entries)}}' \
     | k control apply -f - >/dev/null
   log bootstrap "ok"
   echo "bootstrap done: Argo CD on the control cluster now reconciles the platform from $PLATFORM_REPO@$REVISION"

@@ -1,0 +1,138 @@
+---
+apiVersion: platform.example.org/v1
+kind: AppIdentity
+metadata:
+  name: hello
+  namespace: tenant-team-a-dev
+spec:
+  crossplane:
+    resourceRefs:
+    - apiVersion: external-secrets.io/v1alpha1
+      kind: PushSecret
+      name: appidentity-hello
+    - apiVersion: v1
+      kind: ConfigMap
+      name: hello-federation
+    - apiVersion: v1
+      kind: Secret
+      name: hello-appidentity
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: federation, identity, and identity-secret'
+    reason: Creating
+    status: "False"
+    type: Ready
+  identitySecret: appidentity-hello
+  issuers:
+  - https://kubernetes.default.svc.cluster.local
+  subject: system:serviceaccount:team-a-dev:hello
+---
+apiVersion: v1
+data:
+  audience: api://AzureADTokenExchange
+  issuers: https://kubernetes.default.svc.cluster.local
+  subject: system:serviceaccount:team-a-dev:hello
+kind: ConfigMap
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: federation
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/env: dev
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/team: team-a
+  name: hello-federation
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: identity
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/env: dev
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/team: team-a
+  name: appidentity-hello
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+spec:
+  data:
+  - match:
+      remoteRef:
+        property: clientId
+        remoteKey: appidentity-hello
+      secretKey: clientId
+  - match:
+      remoteRef:
+        property: tenantId
+        remoteKey: appidentity-hello
+      secretKey: tenantId
+  deletionPolicy: Delete
+  refreshInterval: 10s
+  secretStoreRefs:
+  - kind: SecretStore
+    name: vault
+  selector:
+    secret:
+      name: hello-appidentity
+  updatePolicy: Replace
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: identity-secret
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/env: dev
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/team: team-a
+  name: hello-appidentity
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+stringData:
+  clientId: local
+  tenantId: local
+type: Opaque

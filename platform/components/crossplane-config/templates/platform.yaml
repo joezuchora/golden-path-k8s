@@ -35,7 +35,19 @@ spec:
           properties:
             spec:
               type: object
+              # The owning app can be set once and never changed or removed: a different app needs a new database and a
+              # data migration (D-102).
+              x-kubernetes-validations:
+                - rule: "!has(oldSelf.app) || (has(self.app) && self.app == oldSelf.app)"
+                  message: "spec.app is immutable once set: a different app needs a new database request and a data migration (D-102)"
               properties:
+                app:
+                  type: string
+                  maxLength: 63
+                  pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                  description: >-
+                    The one app this database serves (D-102): the name of an AppIdentity in the same namespace. On AKS only
+                    that app's identity gets a database role; without it the database grants nothing. Immutable once set.
                 storageGB:
                   type: integer
                   minimum: 1
@@ -53,6 +65,69 @@ spec:
                 connectionSecret:
                   type: string
                   description: The key in the team's secret store that holds the connection details.
+---
+# AppIdentity XRD v1 (ADR-0008, ADR-0013, D-104): the app's own cloud identity, federated to the ServiceAccount named after
+# the app in <team>-<env> on every workload cluster in the env's group. The XR's name is the app; there are no fields to
+# set, because issuers, subjects, scopes and grants all come from the platform (the tenant Namespace and the environment),
+# never from the request. Which database an app may use is set on the database (PostgreSQLInstance.spec.app, D-102).
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: appidentities.platform.example.org
+spec:
+  group: platform.example.org
+  names: {kind: AppIdentity, plural: appidentities}
+  scope: Namespaced
+  enforcedCompositionRef: {name: appidentity-{{ $p }}}
+  defaultCompositeDeletePolicy: Foreground
+  versions:
+    - name: v1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: >-
+            The cloud identity of one app (its name), federated to the app's ServiceAccount. Its client and tenant IDs arrive
+            in the app's namespace as a Secret, like a database's connection details (ADR-0002).
+          properties:
+            spec:
+              type: object
+              description: No fields. The XR's name is the app; everything else is derived by the platform.
+            status:
+              type: object
+              properties:
+                identitySecret:
+                  type: string
+                  description: The key in the team's secret store that holds the identity's client and tenant IDs.
+                subject:
+                  type: string
+                  description: The ServiceAccount the identity is federated to.
+                issuers:
+                  type: array
+                  items: {type: string}
+                  description: The workload clusters' OIDC issuers the identity trusts.
+                clientId:
+                  type: string
+                  description: The identity's client ID (AKS).
+                principalId:
+                  type: string
+                  description: The identity's principal (object) ID, which database roles bind to (AKS).
+{{- if eq $p "local" }}
+{{- if not .Values.local.issuer }}{{ fail "compositionProvider=local needs local.issuer (values-kind.yaml): the service-account issuer of the kind cluster" }}{{ end }}
+---
+# kind's counterpart of the azure-platform EnvironmentConfig that infra/aks/aks.sh writes (D-104): the OIDC issuer of the
+# one cluster, which is both control plane and workload cluster, in the "shared" workload group (D-079). AppIdentity's
+# local composition records the federation it would create, and the e2e checks real projected tokens against it.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata: {name: local-platform}
+data:
+  tenantId: local
+  workloadIssuers:
+    shared:
+      - {cluster: in-cluster, issuer: {{ .Values.local.issuer | quote }}}
+{{- end }}
 {{- range $path, $_ := .Files.Glob (printf "compositions/%s/*.yaml" $p) }}
 ---
 {{ $.Files.Get $path }}

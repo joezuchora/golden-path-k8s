@@ -45,13 +45,15 @@ Blog meaning: "Your app reaches Azure services without a stored secret"; "Your a
 | One user-assigned managed identity (UAMI) **per app per environment** | Created by the platform through the namespaced `AppIdentity` XR |
 | Federated to the app's own ServiceAccount | Subject `system:serviceaccount:<team>-<env>:<app>`; issuer = the workload cluster's OIDC issuer; the ServiceAccount is rendered by `golden-service` |
 | Role scope | Only the app's own resources (e.g. a data-plane role on one database or one Key Vault), never the resource group or the subscription |
-| App teams **declare what they need**; they **never write role assignments** | The composition derives the role assignments from the declared dependencies |
+| App teams **declare what they need**; they **never write role assignments** | The team declares `AppIdentity` (its name is the app); a database names its one owning app (`PostgreSQLInstance.spec.app`, immutable, D-102), and the platform creates that app's least-privilege database role (D-098) |
+| Only the app's own ServiceAccount carries its identity | Every pod in a team namespace runs as the ServiceAccount named after its app (`serviceaccount-matches-app`, D-104) |
 | Lifecycle | Owned by the app's `team`, tagged, listed in the catalog, deleted with the app |
 | First proven dependency | Azure Database for PostgreSQL Flexible Server with Entra authentication |
 
 **Proven by (AKS release gate):** allow (the app's own query succeeds with an Entra token); deny (another team's identity
-is refused); deny (a different ServiceAccount in the same namespace gets no token); cleanup (no orphaned UAMI, federated
-credential or role assignment). AKS support isn't declared until all four pass.
+is refused); deny (another app in the same team is refused by the database, D-102); deny (a different ServiceAccount in the
+same namespace gets no token); cleanup (no orphaned UAMI, federated credential, role assignment or database role). AKS
+support isn't declared until all of them pass.
 
 ### HTTPS URL and network feature set (D-027, [ADR-0003](adr/0003-cilium-ebpf-and-gateway-api.md))
 
