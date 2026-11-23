@@ -137,7 +137,7 @@ variable "teams" {
 variable "crossplane_provider_service_accounts" {
   description = "Service accounts of the Crossplane providers that need Azure access (crossplane-config DeploymentRuntimeConfigs); each tenant's provider identity federates to every one (D-099)."
   type        = list(string)
-  default     = ["provider-family-azure", "provider-azure-dbforpostgresql"]
+  default     = ["provider-family-azure", "provider-azure-dbforpostgresql", "provider-azure-managedidentity"]
 }
 
 variable "address_space" {

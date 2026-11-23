@@ -1,0 +1,14 @@
+# Only the Namespace: the azure-platform EnvironmentConfig is missing, so the composition must fail, not compose nothing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-team-a-dev
+  labels:
+    platform.example.org/team: team-a
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/env: dev
+    platform.example.org/workload-group: shared
+    platform.example.org/tenant-scope: control-plane

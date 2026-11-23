@@ -13,6 +13,10 @@ azure:
   providers:
     - xpkg.upbound.io/upbound/provider-family-azure:v2.8.4
     - xpkg.upbound.io/upbound/provider-azure-dbforpostgresql:v2.8.4
+    - xpkg.upbound.io/upbound/provider-azure-managedidentity:v2.8.4   # AppIdentity (D-104)
+# local profile only (D-104): the cluster's service-account token issuer, for AppIdentity's federation record.
+local:
+  issuer: ""
 # azure profile only (D-081): set from the cluster Secret's platform-values annotation by the placement ApplicationSets.
 # Client and subscription IDs are per tenant, in the tenancy chart's ProviderConfig (D-099).
 global:

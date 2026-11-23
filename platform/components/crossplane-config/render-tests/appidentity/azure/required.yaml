@@ -1,0 +1,30 @@
+# The XR's tenant Namespace, and the azure-platform EnvironmentConfig as infra/aks/aks.sh writes it (D-081, D-099, D-104).
+# Three workload clusters in group "shared", to show federated credentials created one after another. Test values only.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-team-a-dev
+  labels:
+    platform.example.org/team: team-a
+    platform.example.org/owner: team-a-oncall
+    platform.example.org/cost-center: cc-1001
+    platform.example.org/data-classification: internal
+    platform.example.org/contract-version: "1.0"
+    platform.example.org/env: dev
+    platform.example.org/workload-group: shared
+    platform.example.org/tenant-scope: control-plane
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata: {name: azure-platform}
+data:
+  environmentId: test01
+  location: westeurope
+  tenantId: 00000000-0000-0000-0000-000000000000
+  tenantResourceGroups:
+    tenant-team-a-dev: rg-gp-test01-team-a-dev
+  workloadIssuers:
+    shared:
+      - {cluster: aks-c, issuer: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/cccc/}
+      - {cluster: aks-a, issuer: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/aaaa/}
+      - {cluster: aks-b, issuer: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/bbbb/}

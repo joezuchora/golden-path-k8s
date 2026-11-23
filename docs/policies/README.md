@@ -11,6 +11,7 @@ Every policy has pass and fail cases under `platform/policies/tests/` (`make tes
 | `require-resources` | ValidatingPolicy | every app namespace | [require-resources](require-resources.md) |
 | `require-controller` | ValidatingPolicy | every app namespace | [require-controller](require-controller.md) |
 | `route-hostnames` | ValidatingPolicy | every app namespace | [route-hostnames](route-hostnames.md) |
+| `serviceaccount-matches-app` | ValidatingPolicy | every app namespace | [serviceaccount-matches-app](serviceaccount-matches-app.md) |
 | `tenant-namespace-xrs-only` | ValidatingPolicy | tenant namespaces on the control plane | [tenant-namespace-xrs-only](tenant-namespace-xrs-only.md) |
 | `ownership-labels-<team>` (validate); `derive-labels-<team>`, `derive-labels-pods-<team>` (mutate) | ValidatingPolicy, MutatingPolicy | the team's namespaces | [ownership-labels](ownership-labels.md) |
 

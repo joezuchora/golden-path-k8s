@@ -1,0 +1,195 @@
+---
+apiVersion: platform.example.org/v1
+kind: AppIdentity
+metadata:
+  name: hello
+  namespace: tenant-team-a-dev
+spec:
+  crossplane:
+    resourceRefs:
+    - apiVersion: external-secrets.io/v1alpha1
+      kind: PushSecret
+      name: appidentity-hello
+    - apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+      kind: FederatedIdentityCredential
+      name: hello-aks-a
+    - apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+      kind: FederatedIdentityCredential
+      name: hello-aks-b
+    - apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+      kind: UserAssignedIdentity
+      name: hello
+    - apiVersion: v1
+      kind: Secret
+      name: hello-appidentity
+status:
+  clientId: 11111111-1111-1111-1111-111111111111
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: federation-aks-b, identity-push, and identity-secret'
+    reason: Creating
+    status: "False"
+    type: Ready
+  identitySecret: appidentity-hello
+  issuers:
+  - https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/aaaa/
+  - https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/bbbb/
+  principalId: 22222222-2222-2222-2222-222222222222
+  subject: system:serviceaccount:team-a-dev:hello
+---
+apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+kind: FederatedIdentityCredential
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: federation-aks-a
+    crossplane.io/external-name: aks-a
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+  name: hello-aks-a
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+spec:
+  forProvider:
+    audience:
+    - api://AzureADTokenExchange
+    issuer: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/aaaa/
+    subject: system:serviceaccount:team-a-dev:hello
+    userAssignedIdentityIdSelector:
+      matchControllerRef: true
+  providerConfigRef:
+    kind: ProviderConfig
+    name: tenant
+---
+apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+kind: FederatedIdentityCredential
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: federation-aks-b
+    crossplane.io/external-name: aks-b
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+  name: hello-aks-b
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+spec:
+  forProvider:
+    audience:
+    - api://AzureADTokenExchange
+    issuer: https://westeurope.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/bbbb/
+    subject: system:serviceaccount:team-a-dev:hello
+    userAssignedIdentityIdSelector:
+      matchControllerRef: true
+  providerConfigRef:
+    kind: ProviderConfig
+    name: tenant
+---
+apiVersion: managedidentity.azure.m.upbound.io/v1beta1
+kind: UserAssignedIdentity
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: identity
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+  name: hello
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+spec:
+  forProvider:
+    location: westeurope
+    name: id-hello
+    resourceGroupName: rg-gp-test01-team-a-dev
+    tags:
+      app: hello
+      contract-version: "1.0"
+      cost-center: cc-1001
+      data-classification: internal
+      env: dev
+      environment-id: test01
+      owner: team-a-oncall
+      team: team-a
+  providerConfigRef:
+    kind: ProviderConfig
+    name: tenant
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: identity-push
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+  name: appidentity-hello
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+spec:
+  data:
+  - match:
+      remoteRef:
+        remoteKey: appidentity-hello
+      secretKey: identity
+  deletionPolicy: Delete
+  refreshInterval: 1m
+  secretStoreRefs:
+  - kind: SecretStore
+    name: vault
+  selector:
+    secret:
+      name: hello-appidentity
+  updatePolicy: Replace
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: identity-secret
+  labels:
+    crossplane.io/composite: hello
+    platform.example.org/app: hello
+  name: hello-appidentity
+  namespace: tenant-team-a-dev
+  ownerReferences:
+  - apiVersion: platform.example.org/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AppIdentity
+    name: hello
+    uid: e2211820-0250-5f91-86f1-39c4cdab8544
+stringData:
+  identity: '{"clientId":"11111111-1111-1111-1111-111111111111","tenantId":"00000000-0000-0000-0000-000000000000"}'
+type: Opaque

@@ -1,0 +1,13 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata: {name: serviceaccount-matches-app}
+policies: [../.rendered/cluster.yaml]
+resources: [resources.yaml]
+variables: values.yaml
+results:
+  - {policy: serviceaccount-matches-app, resources: [own-sa], kind: Pod, result: pass}
+  - {policy: serviceaccount-matches-app, resources: [borrowed-sa], kind: Pod, result: fail}
+  - {policy: serviceaccount-matches-app, resources: [default-sa], kind: Pod, result: fail}
+  - {policy: serviceaccount-matches-app, resources: [unlabeled], kind: Pod, result: fail}
+  - {policy: serviceaccount-matches-app, resources: [hello], kind: Deployment, result: pass}
+  - {policy: serviceaccount-matches-app, resources: [impostor], kind: Deployment, result: fail}

@@ -4,7 +4,7 @@
 - **Date:** 2026-11-22
 - **Contract promise:** P2 An identity
 - **CNCF capability domain(s):** Identity and secret services; Security services; Infrastructure services
-- **Related decisions:** D-022, D-024, D-025, D-079, D-081, D-082, D-086, D-094, D-098, D-099, D-102
+- **Related decisions:** D-022, D-024, D-025, D-079, D-081, D-082, D-086, D-094, D-098, D-099, D-102, D-104
 
 ## Context
 ADR-0008 decided the shape of an app's identity: one user-assigned managed identity (UAMI) per app per environment,
@@ -131,6 +131,9 @@ golden-service renders the projected service-account token itself (audience `api
 client and tenant IDs from the identity Secret, so it doesn't depend on the mutating webhook and renders identically in
 `managed` and `byo` (D-086). A Kyverno rule requires a pod's `serviceAccountName` to equal its app label in team
 namespaces, so another ServiceAccount in the same namespace can't stand in for the app.
+
+**Progress.** Slice 1 is built (D-099). Slice 2 is built in part (D-104): the XRDs, both AppIdentity compositions, the
+ServiceAccount policy and the issuers in the EnvironmentConfigs; golden-service and the kind journey follow.
 
 ## Consequences
 - Positive: per-app identity and least-privilege database access; every platform credential that touches tenant

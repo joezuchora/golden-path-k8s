@@ -13,3 +13,5 @@ results:
   - {policy: tenant-namespace-xrs-only, resources: [sneaky-fic], kind: FederatedIdentityCredential, result: fail}
   - {policy: tenant-namespace-xrs-only, resources: [sneaky-pg], kind: FlexibleServer, result: fail}
   - {policy: tenant-namespace-xrs-only, resources: [sneaky-cnpg], kind: Cluster, result: fail}
+  - {policy: tenant-namespace-xrs-only, resources: [appidentity-hello], kind: PostgreSQLInstance, result: fail}
+  - {policy: tenant-namespace-xrs-only, resources: [hello], kind: AppIdentity, result: pass}
