@@ -73,7 +73,7 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 | 1 | Web portals for provisioning and observing capabilities | Designed | Backstage |
 | 2 | APIs for automatically provisioning capabilities | Partial: proven on kind (`local` composition, J4); `azure` validated and render-tested, live in Phase 4 | Crossplane v2 XRDs |
 | 3 | Golden path templates and docs | Partial: `golden-service` 1.0.0 proven on kind (J1–J4, network contract); Backstage templates in Phase 5 | `golden-service` chart, Backstage templates, this contract |
-| 4 | Automation for building and testing products | Partial: `reusable-build-sign` proven in CI (build-hello signs, attests and passes its own admission check); Renovate in Phase 6 | `reusable-build-sign.yaml`, Renovate |
+| 4 | Automation for building and testing products | Partial: `reusable-build-sign` proven in CI (build-hello signs, attests and passes its own admission check); [Renovate enabled](docs/toolchain.md#renovate) for selected updates, first run pending verification | `reusable-build-sign.yaml`, Renovate |
 | 5 | Automation for delivering and verifying services | Partial: Argo CD, placement, Gitea and Chainsaw proven on kind (all suites); no automated progressive delivery (D-032) | Argo CD, Chainsaw |
 | 6 | Development environments | **Deferred** (D-033) | — |
 | 7 | Application observability | Partial: `idp-diagnose.sh` (J3) and the label taxonomy (J1, J4) proven on kind; metrics, Grafana and OpenCost in Phase 6; no aggregated logs or tracing (D-033) | Prometheus, Grafana, Hubble, OpenCost |
