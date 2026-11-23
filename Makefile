@@ -19,7 +19,7 @@ E2E_DIRS := $(filter-out lib,$(sort $(notdir $(patsubst %/,%,$(wildcard tests/e2
 
 PROFILE ?= local
 
-.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate test-policies e2e e2e-all verify-docs \
+.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate quick-check test-quick-check test-policies e2e e2e-all verify-docs \
 	aks-preflight aks-plan aks-up aks-bootstrap aks-down aks-verify-teardown
 
 help: ## List targets
@@ -50,6 +50,12 @@ kind-down: ## Delete the kind cluster
 
 validate: tools ## All static checks
 	bash scripts/validate.sh
+
+quick-check: ## Fast checks on the change vs origin/main (seconds; also the Claude Code Stop hook, D-107)
+	bash scripts/quick-check.sh
+
+test-quick-check: ## Tests for scripts/quick-check.sh (a scratch clone; CI runs it in the static job)
+	bash tests/scripts/quick-check-test.sh
 
 test-policies: tools ## kyverno test for every policy (pass and fail cases)
 	bash scripts/test-policies.sh

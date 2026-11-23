@@ -43,6 +43,8 @@ jobs:
         env: {REQUIRE_ALL: "1"}
       - name: "make test-policies (online: registry + Rekor, F35)"
         run: make test-policies
+      - name: quick-check self-test (the Claude Code Stop hook's checks, D-107)
+        run: bash tests/scripts/quick-check-test.sh
       - name: verify-docs
         run: bash scripts/verify-docs.sh
         env:
