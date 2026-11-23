@@ -15,6 +15,25 @@ weighed against.
 The 4 promises come from the AKS blog (F2, F16). **Cilium, Chainguard and Cosign are this repo's extensions; the blog
 doesn't mention them (F1, D-015).**
 
+## Five-minute tour
+
+**What an app team writes:** one values file, `apps/<app>/<env>.yaml`, with `app`, `env` and a signed `image` digest.
+Team, owner, cost center, labels, tags and identity are derived from the team's file (D-017). **What the platform
+promises in return:** the [Developer Contract](docs/developer-contract.md): P1 a place to run · P2 an identity ·
+P3 a way to see what it's doing · P4 a safe way to ship.
+
+| Stop | What it shows | Where |
+|---|---|---|
+| 1. Ship by merging a PR | PR → Argo CD sync → signed-image admission → HTTPS route → green commit status on the merge commit. Nobody runs `kubectl apply` | [J1](docs/journeys/j1-ship.md) · `tests/e2e/j1-ship/` |
+| 2. A rejected change tells you how to fix it | An unsigned image, a raw manifest or bad values gets a red commit status with what failed, why, the fix and a docs link. The fix is another PR, not cluster access | [J2](docs/journeys/j2-rejected-change.md) · `tests/e2e/j2-rejected-change/` |
+| 3. Self-service dependencies | One PostgreSQL XR API with two backends: CloudNativePG on kind, and Flexible Server on AKS (proven statically so far). The app connects, survives a credential rotation, and leaves nothing behind | [J4](docs/journeys/j4-request-database.md) |
+| 4. Onboarding is one reviewed file | `platform/tenancy/teams/<team>.yaml` creates the team's namespaces, RBAC, quota, default-deny network policy, admission policies and Argo CD project. Cross-tenant access is tested to be denied | [O1](docs/journeys/o1-onboard-team.md) |
+| 5. Decisions are traceable | 100+ logged decisions and 15 ADRs, with every reversal kept along with its reason | [Decision Log](docs/adr/README.md) · [design evolution](docs/design-evolution.md) |
+
+**Proof, not prose:** every code PR to `main` runs each journey suite on its own fresh kind platform in CI (`kind-e2e`,
+a required check), and every Kyverno policy has pass and fail tests. To run it yourself (Docker with 8 GiB or more):
+`make kind-up && make e2e JOURNEY=j1-ship`.
+
 ## Developer Contract Matrix
 
 Each component maps to exactly one promise. "AKS-native trade-off" is the managed option the component was weighed
