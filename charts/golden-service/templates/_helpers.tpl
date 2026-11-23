@@ -19,6 +19,7 @@ platform.example.org/contract-version: {{ .Values.platform.contractVersion | quo
 {{- if not .Values.image }}{{ fail "image is required" }}{{ end }}
 {{- if not (hasSuffix (printf "-%s" .Values.env) .Release.Namespace) }}{{ fail (printf "env %q doesn't match namespace %q (<team>-<env>)" .Values.env .Release.Namespace) }}{{ end }}
 {{- if and .Values.canary.enabled (not .Values.canary.image) }}{{ fail "canary.enabled needs canary.image" }}{{ end }}
+{{- if not (has .Values.platform.identityEgress (list "world" "none")) }}{{ fail (printf "platform.identityEgress %q must be world or none (values-<profile>.yaml)" .Values.platform.identityEgress) }}{{ end }}
 {{- end }}
 
 {{- define "gs.headerFilter" -}}
@@ -48,6 +49,9 @@ platform.example.org/contract-version: {{ .Values.platform.contractVersion | quo
 {{- define "gs.deployment" -}}
 {{- $v := .root.Values }}
 {{- $name := .name }}
+{{- $reload := list }}
+{{- range $v.dependencies.postgres }}{{ $reload = append $reload (printf "%s-%s-db" $v.app .) }}{{ end }}
+{{- if $v.identity.enabled }}{{ $reload = append $reload (printf "%s-identity" $v.app) }}{{ end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -56,9 +60,9 @@ metadata:
     {{- include "gs.labels" .root | nindent 4 }}
     platform.example.org/track: {{ .track }}
   annotations:
-    {{- if $v.dependencies.postgres }}
-    # Reloader restarts the app when a brokered credential rotates (ADR-0002 step 4).
-    secret.reloader.stakater.com/reload: {{ range $i, $d := $v.dependencies.postgres }}{{ if $i }},{{ end }}{{ $v.app }}-{{ $d }}-db{{ end }}
+    {{- if $reload }}
+    # Reloader restarts the app when a brokered credential or its identity's IDs change (ADR-0002 step 4).
+    secret.reloader.stakater.com/reload: {{ join "," $reload }}
     {{- end }}
 spec:
   replicas: {{ .replicas }}
@@ -79,6 +83,15 @@ spec:
       securityContext:
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
+      {{- if $v.identity.enabled }}
+      # The app's federated token (ADR-0013): rendered here rather than by the AKS workload identity webhook, so the pod
+      # spec is the same with and without it, in both cilium modes and on kind (D-086, D-105). The kubelet refreshes it.
+      volumes:
+        - name: azure-identity-token
+          projected:
+            sources:
+              - serviceAccountToken: {path: azure-identity-token, audience: api://AzureADTokenExchange, expirationSeconds: 3600}
+      {{- end }}
       containers:
         - name: app
           image: {{ .image | quote }}
@@ -102,6 +115,18 @@ spec:
             - {name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: {{ $s }}, key: password, optional: true}}}   # absent with Entra auth (ADR-0008)
             - {name: DB_NAME, valueFrom: {secretKeyRef: {name: {{ $s }}, key: dbname}}}
             {{- end }}
+            {{- if $v.identity.enabled }}
+            {{- $s := printf "%s-identity" $v.app }}
+            # The variables Azure SDKs read for workload identity federation (the same ones the AKS webhook would set).
+            - {name: AZURE_CLIENT_ID, valueFrom: {secretKeyRef: {name: {{ $s }}, key: clientId}}}
+            - {name: AZURE_TENANT_ID, valueFrom: {secretKeyRef: {name: {{ $s }}, key: tenantId}}}
+            - {name: AZURE_FEDERATED_TOKEN_FILE, value: /var/run/secrets/azure/tokens/azure-identity-token}
+            - {name: AZURE_AUTHORITY_HOST, value: "https://login.microsoftonline.com/"}
+            {{- end }}
+          {{- if $v.identity.enabled }}
+          volumeMounts:
+            - {name: azure-identity-token, mountPath: /var/run/secrets/azure/tokens, readOnly: true}
+          {{- end }}
           resources: {{ toJson $v.resources }}
           readinessProbe:
             httpGet: {path: {{ $v.probes.readinessPath }}, port: http}

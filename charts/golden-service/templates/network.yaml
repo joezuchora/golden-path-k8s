@@ -1,6 +1,8 @@
 # Contract P1: app-specific L3/L4 allows on top of the namespace baseline (default deny, DNS, ingress from the gateway).
-{{- $hasRules := or .Values.network.allowFromApps .Values.network.allowToApps (and .Values.dependencies.postgres (eq .Values.platform.dependencyEgress "inCluster")) }}
-{{- if $hasRules }}
+{{- $dbEgress := and .Values.dependencies.postgres (eq .Values.platform.dependencyEgress "inCluster") }}
+{{- $entraEgress := and .Values.identity.enabled (eq .Values.platform.identityEgress "world") }}
+{{- $hasEgress := or .Values.network.allowToApps $dbEgress $entraEgress }}
+{{- if or .Values.network.allowFromApps $hasEgress }}
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -18,13 +20,13 @@ spec:
       toPorts: [{ports: [{port: {{ .port | quote }}, protocol: TCP}]}]
     {{- end }}
   {{- end }}
-  {{- if or .Values.network.allowToApps (and .Values.dependencies.postgres (eq .Values.platform.dependencyEgress "inCluster")) }}
+  {{- if $hasEgress }}
   egress:
     {{- range .Values.network.allowToApps }}
     - toEndpoints: [{matchLabels: {platform.example.org/app: {{ .app }}}}]
       toPorts: [{ports: [{port: {{ .port | quote }}, protocol: TCP}]}]
     {{- end }}
-    {{- if eq .Values.platform.dependencyEgress "inCluster" }}
+    {{- if $dbEgress }}
     {{- range .Values.dependencies.postgres }}
     # The composed database (local composition: CloudNativePG in tenant-<team>-<env>, labeled by the composition).
     - toEndpoints:
@@ -33,6 +35,12 @@ spec:
             platform.example.org/dependency: {{ . }}
       toPorts: [{ports: [{port: "5432", protocol: TCP}]}]
     {{- end }}
+    {{- end }}
+    {{- if $entraEgress }}
+    # Token exchange with Microsoft Entra ID (ADR-0013). L3/L4 policy can't name login.microsoftonline.com, and the
+    # L7/FQDN profile is optional (D-021), so this is TCP 443 to world until that profile narrows it (D-086, D-105).
+    - toEntities: [world]
+      toPorts: [{ports: [{port: "443", protocol: TCP}]}]
     {{- end }}
   {{- end }}
 {{- end }}

@@ -133,7 +133,8 @@ client and tenant IDs from the identity Secret, so it doesn't depend on the muta
 namespaces, so another ServiceAccount in the same namespace can't stand in for the app.
 
 **Progress.** Slice 1 is built (D-099). Slice 2 is built in part (D-104): the XRDs, both AppIdentity compositions, the
-ServiceAccount policy and the issuers in the EnvironmentConfigs; golden-service and the kind journey follow.
+ServiceAccount policy and the issuers in the EnvironmentConfigs. golden-service consumes the identity behind the optional
+`identity.enabled` value, with TCP 443 egress to `world` on the AKS profiles only (D-105). The kind journey follows.
 
 ## Consequences
 - Positive: per-app identity and least-privilege database access; every platform credential that touches tenant
