@@ -42,9 +42,15 @@ published checksums (F34), so it is installed from the bundle tarball, whose che
 4. **Prove it:** the PR's `validate`, `test-policies` and kind e2e jobs must pass. A minor or major bump of a contract-surface
    component (Kyverno policy APIs, Gateway API, XRD API versions) also follows ADR-0010.
 
-Renovate opens PRs today only for Chainguard image digests outside admission and for GitHub Actions pins (D-091). The pins in
-`tools/versions.env` and the admission-bound runtime base (`cgr.dev/chainguard/static`) stay manual until Phase 6, and follow the
-steps above.
+## Renovate
+
+On 2026-11-23, the Mend Developer Portal showed Renovate enabled for `joezuchora/golden-path-k8s` on the
+Community (Free) plan in Interactive mode. The portal showed no completed job at setup, so the first run
+is pending verification. Check the portal's **Last Job Run** or look for the **Dependency Dashboard** issue in GitHub.
+
+The [repository configuration](../renovate.json) covers Chainguard image digests outside admission and GitHub Actions
+pins (D-091). Review and merge Renovate PRs manually after `static` and `kind-e2e` pass (D-092). Pins in
+`tools/versions.env` and the admission-bound runtime base (`cgr.dev/chainguard/static`) follow the manual process above.
 
 ## Version skew that is allowed
 
