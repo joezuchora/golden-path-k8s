@@ -54,6 +54,11 @@
       "additionalProperties": false,
       "properties": {"postgres": {"type": "array", "maxItems": 1, "description": "v1: one database per app; its credentials arrive as DB_* variables (D-062)", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$"}}}
     },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"enabled": {"type": "boolean", "description": "Mount the app's federated token and identity IDs; needs an AppIdentity named after the app (ADR-0013)"}}
+    },
     "network": {
       "type": "object",
       "additionalProperties": false,

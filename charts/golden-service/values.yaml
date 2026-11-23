@@ -36,6 +36,11 @@ canary:                        # feature 4: weighted backends, a manual canary t
 dependencies:
   postgres: []                 # [orders-db]: at most one in v1; its credentials arrive as DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME
 
+# --- Cloud identity (contract P2, ADR-0013): needs an AppIdentity named after the app in tenant-<team>-<env> ---
+identity:
+  enabled: false               # projects the ServiceAccount token (audience api://AzureADTokenExchange) and sets AZURE_CLIENT_ID,
+                               # AZURE_TENANT_ID, AZURE_FEDERATED_TOKEN_FILE and AZURE_AUTHORITY_HOST, as Azure SDKs expect
+
 # --- Network (contract P1): L3/L4 allows by app label and port, on top of the namespace's default deny ---
 network:
   allowFromApps: []            # [{app: frontend, port: 8080}] (same namespace)
@@ -47,4 +52,5 @@ platform:
   gateway: {namespace: platform-gateway, name: platform, sectionName: https}
   secretStore: platform        # namespaced SecretStore rendered by tenancy (Key Vault on AKS, local store on kind)
   dependencyEgress: inCluster  # inCluster (kind: CloudNativePG in the tenant namespace) | none (AKS: Phase 4)
+  identityEgress: none         # world (AKS: TCP 443 for Microsoft Entra ID, D-105) | none (kind: no Entra to reach)
   contractVersion: "1.0"

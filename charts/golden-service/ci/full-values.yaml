@@ -1,4 +1,4 @@
-# Exercises every value (all six route features, canary, a dependency, network allows) for helm lint and make validate.
+# Exercises every value (all six route features, canary, a dependency, the app identity, network allows) for helm lint and make validate.
 app: hello
 env: dev
 image: ghcr.io/joezuchora/golden-path-k8s/hello@sha256:0000000000000000000000000000000000000000000000000000000000000000
@@ -8,4 +8,5 @@ route:
   responseHeaders: {add: {x-served-by: golden-service}, remove: [server]}
 canary: {enabled: true, image: "ghcr.io/x/y@sha256:1111111111111111111111111111111111111111111111111111111111111111", weight: 20}
 dependencies: {postgres: [orders-db]}
+identity: {enabled: true}
 network: {allowFromApps: [{app: frontend, port: 8080}]}

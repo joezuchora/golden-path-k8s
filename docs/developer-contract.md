@@ -47,6 +47,7 @@ Blog meaning: "Your app reaches Azure services without a stored secret"; "Your a
 | Role scope | Only the app's own resources (e.g. a data-plane role on one database or one Key Vault), never the resource group or the subscription |
 | App teams **declare what they need**; they **never write role assignments** | The team declares `AppIdentity` (its name is the app); a database names its one owning app (`PostgreSQLInstance.spec.app`, immutable, D-102), and the platform creates that app's least-privilege database role (D-098) |
 | Only the app's own ServiceAccount carries its identity | Every pod in a team namespace runs as the ServiceAccount named after its app (`serviceaccount-matches-app`, D-104) |
+| The app receives its identity without a stored secret | `identity.enabled: true` in golden-service mounts the ServiceAccount's token (audience `api://AzureADTokenExchange`) and sets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_FEDERATED_TOKEN_FILE` and `AZURE_AUTHORITY_HOST`, which Azure SDKs read; the IDs arrive from the `AppIdentity` through the team's store. The chart renders this itself, so the pod spec doesn't depend on the AKS webhook. On AKS the app may reach Microsoft Entra ID on TCP 443 (to `world` until the L7/FQDN profile narrows it, D-021) (D-105) |
 | Lifecycle | Owned by the app's `team`, tagged, listed in the catalog, deleted with the app |
 | First proven dependency | Azure Database for PostgreSQL Flexible Server with Entra authentication |
 
@@ -148,6 +149,20 @@ let a team run a manual canary through Git.
 **Support window:** the current and previous major. **Adoption** is measured through the
 `platform.example.org/contract-version` label on every app object (ADR-0007).
 
+### Changelog
+
+**Unreleased: 1.1.** Cut as one release once the `AppIdentity` kind journey passes (ADR-0013); until then the chart stays
+`1.0.0` and the `contract-version` label stays `"1.0"`.
+- XRD `AppIdentity` v1: an app's cloud identity, declared in `tenant-<team>-<env>`; its name is the app (D-104).
+- XRD `PostgreSQLInstance`: optional `spec.app`, the database's owning app, immutable once set (D-102, D-104).
+- Policy set: `serviceaccount-matches-app` (Deny). It rejects nothing golden-service renders, which sets the ServiceAccount
+  and the app label from the same value (D-104).
+- Policy set: `tenant-namespace-xrs-only` rejects a `PostgreSQLInstance` named `appidentity-*`, the only name that collides
+  with identity entries in the team's store. Such a name was valid before; no request in this repo uses it (D-104).
+- golden-service: optional `identity.enabled` (D-105).
+
+**1.0:** the initial v1 surface (D-014).
+
 ## RACI (D-037)
 
 R = responsible, A = accountable, C = consulted, I = informed.
@@ -232,7 +247,9 @@ The CNCF model warns about Goodhart's Law (F19). These metrics inform the roadma
 
 **Identity (ADR-0008) is the one contract promise kind can't deliver as written.** kind has no Entra federation. On kind,
 the chart renders the same ServiceAccount, and the `local` PostgreSQL composition uses a brokered password delivered through
-the local SecretStore. Real federation is an **AKS release gate**.
+the local SecretStore. With `identity.enabled`, kind mounts a real projected token, but the identity Secret's IDs are
+placeholders and nothing exchanges the token; ADR-0013's kind check compares the token's issuer and subject with the
+`AppIdentity`'s federation record instead (D-105). Real federation is an **AKS release gate**.
 
 Related demo limitation (not a promise kind is expected to keep): Backstage on kind uses a read-only service account limited
 to tenant namespaces, because there's no Entra ID. It is labeled as such and **never presented as tenant isolation**.
