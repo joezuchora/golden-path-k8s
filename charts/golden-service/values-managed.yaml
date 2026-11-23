@@ -4,3 +4,4 @@
 platform:
   domain: apps.aks.invalid
   dependencyEgress: none
+  identityEgress: world        # token exchange with Microsoft Entra ID: TCP 443 to world until the L7/FQDN profile (D-021, D-105)
