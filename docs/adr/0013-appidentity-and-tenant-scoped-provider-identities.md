@@ -138,7 +138,7 @@ namespaces, so another ServiceAccount in the same namespace can't stand in for t
 - Negative / accepted trade-offs: two more UAMIs and a DNS zone per tenant/env, and one federated credential per provider
   service account for each tenant's provider UAMI; a Job and a network path into the PostgreSQL subnet, which D-082
   avoided; Entra administration on a VNet-integrated server needs outbound access to the `AzureActiveDirectory` service
-  tag (F61), which `infra/modules/network` must add; a database serves one app, so sharing one means a new request and
+  tag (F61), which the delegated subnet's NSG allows (D-103); a database serves one app, so sharing one means a new request and
   a data migration (D-102). Moving existing servers to per-tenant DNS zones means recreating them; nothing runs on Azure yet, so the
   move costs nothing today.
 - Escape hatch: a dependency that can't use Entra auth falls back to ESO-brokered credentials, with an exception entry

@@ -31,3 +31,68 @@ resource "azurerm_subnet" "postgres" {
     }
   }
 }
+
+# The delegated subnet's NSG (D-103) carries the rules Microsoft requires for VNet-integrated Flexible Server (F66):
+# PostgreSQL within the subnet (high availability and other features), outbound to Storage (WAL and backups), and outbound
+# to Microsoft Entra ID, without which Entra administration and token acquisition fail (F61). Rules use addresses and
+# service tags only: application security groups aren't supported here (F66). Azure's default rules stay in place: a
+# blanket outbound deny isn't documented as safe for the service, so it waits for evidence from a live run (D-103).
+resource "azurerm_network_security_group" "postgres" {
+  name                = "nsg-${var.name_prefix}-postgres"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+
+  security_rule {
+    name                       = "allow-postgres-from-vnet"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = var.postgres_subnet
+  }
+
+  security_rule {
+    name                       = "allow-postgres-within-subnet"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = var.postgres_subnet
+    destination_address_prefix = var.postgres_subnet
+  }
+
+  security_rule {
+    name                       = "allow-storage"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = var.postgres_subnet
+    destination_address_prefix = "Storage"
+  }
+
+  security_rule {
+    name                       = "allow-entra-id"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = var.postgres_subnet
+    destination_address_prefix = "AzureActiveDirectory"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "postgres" {
+  subnet_id                 = azurerm_subnet.postgres.id
+  network_security_group_id = azurerm_network_security_group.postgres.id
+}
