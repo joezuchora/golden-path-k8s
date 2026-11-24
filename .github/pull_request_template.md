@@ -4,6 +4,10 @@
 
 <!-- What changes, and the problem it solves. One paragraph. -->
 
+## Plan for substantial changes
+
+<!-- Before editing, capture the outcome, the Developer Contract promise or repo invariant, the main risk, and the acceptance criteria. Flag any decision that needs the maintainer's input. -->
+
 ## Decision tracking
 
 - D-entry: <!-- D-xxx added/updated in docs/adr/README.md, or "none: no design decision" -->
@@ -12,7 +16,7 @@
 
 ## Testing done
 
-<!-- Each command you ran and its result line. CI re-runs static and kind-e2e; list what you ran locally. -->
+<!-- For each acceptance criterion, name the command or CI check and its observed result. Keep skipped or unavailable evidence under "Not covered". -->
 
 ```text
 make quick-check        →
