@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [placement, o1-onboard-team, j1-ship, j2-rejected-change, j3-unhealthy-rollout, j4-request-database, network-contract]
+        suite: [placement, o1-onboard-team, j1-ship, j2-rejected-change, j3-unhealthy-rollout, j4-request-database, j5-app-identity, network-contract]
     env: {SUITE: "${{ matrix.suite }}"}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

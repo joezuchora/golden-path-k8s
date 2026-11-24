@@ -80,7 +80,7 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 | 8 | Infrastructure services | Partial: kind, tenancy, Cilium and the Gateway proven on kind (placement, O1, network contract); AKS and Terraform in Phase 4 | AKS, kind, Cilium, Gateway API, Terraform |
 | 9 | Data services | Partial (PostgreSQL only): proven on kind with CloudNativePG (J4); Azure Flexible Server in Phase 4 | PostgreSQL compositions |
 | 10 | Messaging and event services | **Deferred** (D-033) | — |
-| 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); Workload ID and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
+| 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); the app identity's federation record and projected token proven on kind (J5); Workload ID token exchange and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
 | 12 | Security services | Partial: the Kyverno policy set, Cosign keyless, Chainguard bases and the network baseline proven (`make test-policies`, J1, J2, network contract); WAF and ACNS in Phase 4, Trivy Operator in Phase 6 | Kyverno, Cosign, Chainguard, Trivy, network policy, WAF |
 | 13 | Artifact storage | Proven: GHCR (build-hello publishes; kind pulls the signed digest anonymously, F48) | GHCR |
 
