@@ -135,7 +135,7 @@ namespaces, so another ServiceAccount in the same namespace can't stand in for t
 **Progress.** Slice 1 is built (D-099). Slice 2 is built in part (D-104): the XRDs, both AppIdentity compositions, the
 ServiceAccount policy and the issuers in the EnvironmentConfigs. golden-service consumes the identity behind the optional
 `identity.enabled` value, with TCP 443 egress to `world` on the AKS profiles only (D-105). Journey J5 runs the kind
-fitness checks for slice 2 on every PR (D-107). Slice 3 and the AKS release gate remain.
+fitness checks for slice 2 on every PR (D-109). Slice 3 and the AKS release gate remain.
 
 ## Consequences
 - Positive: per-app identity and least-privilege database access; every platform credential that touches tenant

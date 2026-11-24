@@ -1,4 +1,4 @@
-# Journey J5: get an app identity (docs/journeys/j5-app-identity.md). ADR-0013's kind fitness check (D-104, D-105, D-107).
+# Journey J5: get an app identity (docs/journeys/j5-app-identity.md). ADR-0013's kind fitness check (D-104, D-105, D-109).
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:

@@ -1,7 +1,7 @@
 # J5 Get an app identity
 
 **Who:** an app team. **Promise:** P2 ("Your app reaches Azure services without a stored secret"). **Fitness check:**
-ADR-0013's kind checks (D-104, D-105, D-107). **Suite:** `tests/e2e/j5-app-identity/`.
+ADR-0013's kind checks (D-104, D-105, D-109). **Suite:** `tests/e2e/j5-app-identity/`.
 
 ## What the developer does
 
