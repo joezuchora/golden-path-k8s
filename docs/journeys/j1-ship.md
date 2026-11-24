@@ -26,6 +26,7 @@ gets an HTTPS URL"). **Exit criterion 3.** **Suite:** `tests/e2e/j1-ship/`.
 | Roll out | Deployment, Pod Security `restricted` | Application `Healthy` |
 | Route | HTTPRoute on the platform Gateway, cert from cert-manager (kind: platform CA, D-051) | `https://hello-team-a-dev.apps.kind.test/` returns 200 from an in-cluster client; HTTP returns 301; the response header modifier is present |
 | Report | Argo CD notifications → Gitea commit status (D-043) | The merge commit has a `success` status from `platform/argocd/team-a-hello-dev-in-cluster` |
+| Report the next merge | The same template posts each status to the commit its sync is about (D-108) | After a second merge syncs, it has `success` and the first merge's latest status for that context is still `success`, not `pending` |
 
 ## Where kind deviates
 
