@@ -28,4 +28,13 @@ hdr="$(in_curl hello-team-a-dev.apps.kind.test https / -D - -o /dev/null | grep 
 redir="$(in_curl hello-team-a-dev.apps.kind.test http / | tail -1)"
 [ "$redir" = 301 ] && echo "PASS http → https redirect (301)" || { echo "FAIL http returned $redir"; fail=1; }
 desc="$(wait_status team-a/deploy "$sha" success team-a-hello-dev-in-cluster 300)" && echo "PASS commit status success on $sha: $desc" || fail=1
+# Ship again: the next merge's sync must not reopen this commit's status (D-108). Argo CD's status.sync still names this
+# commit when the next sync starts, so a status keyed on it turned a shipped commit's status back to pending for good.
+printf 'app: hello\nenv: dev\nimage: %s\nreplicas: 2\nroute:\n  responseHeaders: {add: {x-journey: j1-again}}\n' "$HELLO_SIGNED" >/tmp/j1b-values.$$
+sha2="$(ship team-a hello dev /tmp/j1b-values.$$ j1-ship-hello-again)"; rm -f /tmp/j1b-values.$$
+echo "merged team-a/deploy → $sha2"
+desc="$(wait_status team-a/deploy "$sha2" success team-a-hello-dev-in-cluster 300)" && echo "PASS commit status success on $sha2: $desc" || fail=1
+prev="$(latest_status team-a/deploy "$sha" team-a-hello-dev-in-cluster)"
+[ "$prev" = success ] && echo "PASS the previous merge $sha still shows success after the next sync" \
+  || { echo "FAIL the previous merge $sha shows '$prev' after the next sync (want success): $(commit_statuses team-a/deploy "$sha" | jq -c '[.[] | {context, status, description}]' | cut -c1-500)"; fail=1; }
 exit $fail

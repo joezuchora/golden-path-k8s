@@ -10,6 +10,7 @@ with the same name (CLAUDE.md invariant, checked by `make validate`). Every suit
 | [J2 A rejected change tells you how to fix it](j2-rejected-change.md) | App team | P4 | 4 | `make e2e JOURNEY=j2-rejected-change` |
 | [J3 An unhealthy rollout shows the next action](j3-unhealthy-rollout.md) | App team | P3 | 5 | `make e2e JOURNEY=j3-unhealthy-rollout` |
 | [J4 Request a database](j4-request-database.md) | App team | P1, P2 | 6 | `make e2e JOURNEY=j4-request-database` |
+| [J5 Get an app identity](j5-app-identity.md) | App team | P2 | ADR-0013 kind checks | `make e2e JOURNEY=j5-app-identity` |
 | [O1 Onboard a team](o1-onboard-team.md) | Platform team + app team | P1, P3 | 7 | `make e2e JOURNEY=o1-onboard-team` |
 
 Platform checks (not journeys) have suites too: `placement` (exit criterion 1, D-023) and `network-contract` (contract

@@ -28,7 +28,18 @@ notifications:
           method: POST
           # Templating lives inside the string values: Argo CD parses this block as YAML before it renders the templates.
           # Repo and revision: the values source (sources[1]) of an app, or the only source of an XR application.
-          path: '/repos/{{ if .app.spec.sources }}{{ call .repo.FullNameByRepoURL (index .app.spec.sources 1).repoURL }}/statuses/{{ index .app.status.sync.revisions 1 }}{{ else }}{{ call .repo.FullNameByRepoURL .app.spec.source.repoURL }}/statuses/{{ .app.status.sync.revision }}{{ end }}'
+          # The revision is the commit this status is about (D-108). While a sync runs or after it fails, that's the
+          # operation's own: syncResult once the controller has resolved it, else operation.sync. status.sync can
+          # still name the previous commit when the next sync starts (the operation is set before the new comparison
+          # is saved), which turned a shipped commit's status back to pending. After a success, status.sync when it's
+          # Synced, so a commit that changes no manifest, and gets no sync of its own, still gets a status (D-067).
+          path: >-
+            {{- $st := .app.status }}{{ $field := "revision" }}{{ $src := 0 }}
+            {{- if .app.spec.sources }}{{ $field = "revisions" }}{{ $src = 1 }}{{ end }}
+            {{- $revs := list (dig "operationState" "syncResult" $field "" $st) (dig "operationState" "operation" "sync" $field "" $st) (dig "sync" $field "" $st) }}
+            {{- if and (eq (dig "operationState" "phase" "" $st) "Succeeded") (eq (dig "sync" "status" "" $st) "Synced") }}{{ $revs = prepend $revs (dig "sync" $field "" $st) }}{{ end }}
+            {{- $rev := first (compact $revs) }}{{ if $src }}{{ $rev = index $rev $src }}{{ end -}}
+            /repos/{{ if .app.spec.sources }}{{ call .repo.FullNameByRepoURL (index .app.spec.sources 1).repoURL }}{{ else }}{{ call .repo.FullNameByRepoURL .app.spec.source.repoURL }}{{ end }}/statuses/{{ $rev }}
           body: |
             {
               "context": "platform/argocd/{{.app.metadata.name}}",

@@ -1,0 +1,66 @@
+# Database request (dependency catalog, Milestone 1: local preview). The form collects only the four logical fields.
+# Owner, deploy repository and destination are derived on the backend from reviewed Git metadata and the signed-in
+# caller (dependency:renderRequest). This template has no publish step: run it with the Template Editor's dry run.
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: request-database
+  title: Request a database
+  description: Compare the approved database offerings for a service environment and preview the Git request.
+  tags: [database, dependency-catalog, preview]
+spec:
+  owner: group:default/team-a
+  type: dependency
+  parameters:
+    - title: Service and environment
+      required: [service, environment]
+      properties:
+        service:
+          title: Service
+          type: string
+          description: A service your team owns. The backend rejects a service you are not a member of.
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter: {kind: Component, spec.type: service}
+            defaultKind: Component
+            allowArbitraryValues: false
+        environment:
+          title: Environment
+          type: string
+          description: An environment the service declares.
+          ui:field: DependencyEnvironmentPicker
+    - title: Database
+      required: [name, offering]
+      properties:
+        name:
+          title: Dependency name
+          type: string
+          description: Lowercase DNS label starting with a letter, up to 63 characters. Becomes the request file name.
+          default: primary-db
+          pattern: '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
+        offering:
+          title: Offering
+          type: string
+          ui:field: OfferingPicker
+          ui:options:
+            capability: database
+  steps:
+    - id: render
+      name: Render the dependency request
+      action: dependency:renderRequest
+      input:
+        # The whole form, unmodified: the backend rejects any field beyond the four logical ones.
+        request: ${{ parameters }}
+  output:
+    text:
+      - title: Request file (local preview)
+        content: |
+          **Path:** `${{ steps.render.output.path }}`
+
+          ```yaml
+          ${{ steps.render.output.contents | trim }}
+          ```
+
+          Owner `${{ steps.render.output.ownerRef }}`, deploy repository `${{ steps.render.output.deployRepo }}`, and
+          destination `${{ steps.render.output.destinationRef }}` were derived on the backend from reviewed metadata.
+          Dry run: ${{ steps.render.output.dryRun }}. Nothing was published: PR publishing comes in a later milestone.

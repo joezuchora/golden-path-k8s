@@ -65,12 +65,25 @@ they never define it. Cite each source only for what it actually says.
 - `main` is protected by a ruleset (D-092): changes land only through a PR, after `static` and `kind-e2e` pass. No direct
   or force pushes. Auto-merge is allowed per PR; never enable it on a Renovate PR.
 
+## Definition of done (D-107)
+- Evidence before claims: say "done" or "passes" only with the command you ran and its result in this session.
+- Every change: `make quick-check`. The Stop hook in `.claude/settings.json` runs it and sends you back once per turn on a
+  failure; fix it or say why it must stay.
+  Before the PR, also run `make validate`. If you touched policies, run `make test-policies`; docs, `make verify-docs`; a
+  journey or what it exercises, `make e2e JOURNEY=<dir>`. A check you couldn't run goes under "Not covered" in the PR.
+- Every change has a test that fails without it (policy case, render golden file, Chainsaw step), or the PR says why not.
+- Review with fresh context before opening the PR: run `/code-review`, and the `pr-reviewer` subagent on
+  `git diff origin/main...HEAD` written to a scratch file. Fix the findings or say in the PR why not.
+- Fill in `.github/pull_request_template.md`. CI (`static`, `kind-e2e`) is the merge gate. Local checks and review come
+  first, so CI isn't the first place a problem shows up.
+
 ## Commands
 <!-- Planned targets; none exist yet. Replace with verified commands as each phase lands. -->
 - `make doctor [PROFILE=local|docs|github|cloud|all]`: prerequisite checks (D-056); setup guide in `docs/getting-started.md`
 - `make tools`: pinned, checksum-verified CLIs into `./.bin` (D-048; upgrade path in `docs/toolchain.md`)
 - `make kind-up` / `make kind-down` (Docker required; use WSL2 or Git Bash on Windows); `make kind-sync` pushes the working
   tree to the in-cluster Gitea (D-043). kind targets use `.kube/golden-path.yaml`, never the global current context
+- `make quick-check`: seconds-fast checks on the change vs `origin/main` (D-107); also the Claude Code Stop hook
 - `make validate`: all static checks (kubeconform, helm lint, `crossplane resource validate`, `crossplane composition render`
   golden files, terraform fmt/validate) (D-040)
 - `make test-policies`. Single policy: `kyverno test platform/policies/tests/<policy-dir>`

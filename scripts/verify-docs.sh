@@ -300,25 +300,48 @@ if [ "${OFFLINE:-0}" = "1" ]; then
   status=1
 else
   # A definite answer (e.g. 404) fails at once. Rate limits, server errors and no response (429, 5xx, 000) are
-  # retried LINK_RETRIES times with 5/10/20 s backoff, or the server's Retry-After if longer, capped at 60 s (D-106).
-  LINK_RETRIES="${LINK_RETRIES:-3}"
+  # retried LINK_RETRIES times (D-106). When the server sends Retry-After (seconds or an HTTP date), the wait is that
+  # plus LINK_RETRY_BUFFER seconds; otherwise 5/10/20 s backoff. Each wait is capped at LINK_RETRY_MAX_WAIT. The wait
+  # applies to the whole host, so the next link to a rate-limited host waits too instead of spending its own retries
+  # (D-110).
+  LINK_RETRIES="${LINK_RETRIES:-3}"; LINK_RETRY_BUFFER="${LINK_RETRY_BUFFER:-3}"; LINK_RETRY_MAX_WAIT="${LINK_RETRY_MAX_WAIT:-120}"
   hdr="$(mktemp)"
   probe() { curl -s -o /dev/null -L --max-time 25 -A 'verify-docs' -D "$hdr" -w '%{http_code}' "$@" || true; }
+  # retry_after_s: the last Retry-After in the response headers as seconds from now (empty if none or unparsable).
+  retry_after_s() {
+    local v t; v="$(tr -d '\r' <"$hdr" | sed -n 's/^[Rr]etry-[Aa]fter: *//p' | tail -1)"
+    case "$v" in
+      '') return 0 ;;
+      *[!0-9]*) t="$(date -u -d "$v" +%s 2>/dev/null)" || return 0; t=$((t - $(date -u +%s))); [ "$t" -lt 0 ] && t=0; echo "$t" ;;
+      *) echo "$v" ;;
+    esac
+  }
+  host_of() { sed -E 's#^[a-z]+://([^/:]+).*#\1#' <<<"$1"; }
+  host_waits=""   # lines "<host> <epoch>": don't probe <host> again before <epoch>
+  wait_for_host() {
+    local until now; until="$(awk -v h="$1" '$1 == h {print $2}' <<<"$host_waits" | tail -1)"; now="$(date +%s)"
+    [ -n "$until" ] && [ "$until" -gt "$now" ] && sleep $((until - now))
+    return 0
+  }
   bad=0; n=0; retried=0
   while IFS= read -r url; do
     [ -z "$url" ] && continue
-    n=$((n+1)); attempt=0
+    n=$((n+1)); attempt=0; host="$(host_of "$url")"
     while :; do
+      wait_for_host "$host"
       code="$(probe -I "$url")"
       case "$code" in 2*|3*) ;; *) code="$(probe "$url")";; esac
       case "$code" in 429|5??|000) ;; *) break;; esac
+      # Record the host's wait even when this link is out of retries, so the next link to the host honors it.
+      ra="$(retry_after_s)"
+      if [ -n "$ra" ]; then delay=$((ra + LINK_RETRY_BUFFER)); else delay=$((5 << attempt)); fi
+      if [ "$delay" -gt "$LINK_RETRY_MAX_WAIT" ]; then
+        [ -n "$ra" ] && echo "     . $host asked to wait ${ra} s; waiting the ${LINK_RETRY_MAX_WAIT} s cap"
+        delay="$LINK_RETRY_MAX_WAIT"
+      fi
+      host_waits="$host_waits"$'\n'"$host $(( $(date +%s) + delay ))"
       [ "$attempt" -ge "$LINK_RETRIES" ] && break
       attempt=$((attempt+1))
-      delay=$((5 << (attempt-1)))
-      retry_after="$(tr -d '\r' <"$hdr" | sed -n 's/^[Rr]etry-[Aa]fter: *\([0-9][0-9]*\) *$/\1/p' | tail -1)"
-      [ -n "$retry_after" ] && [ "$retry_after" -gt "$delay" ] && delay="$retry_after"
-      [ "$delay" -gt 60 ] && delay=60
-      sleep "$delay"
     done
     [ "$attempt" -gt 0 ] && retried=$((retried+1))
     case "$code" in
