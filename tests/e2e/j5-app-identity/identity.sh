@@ -71,9 +71,14 @@ for sa in "$A impostor" "team-b-dev hello"; do
   read -r ns name <<<"$sa"
   kubectl -n "$ns" create serviceaccount "$name" --dry-run=client -o yaml | kubectl label --local -f - e2e=j5 -o yaml | kubectl apply -f - >/dev/null
 done
-check "another ServiceAccount in $A doesn't match" '! matches "$(tokenclaims $A impostor)"'
-check "team-b's same-named app (team-b-dev/hello) doesn't match" '! matches "$(tokenclaims team-b-dev hello)"'
-check "the app's own ServiceAccount, for the Kubernetes API audience, doesn't match" '! matches "$(tokenclaims $A hello https://kubernetes.default.svc.cluster.local)"'
+# denied <claims-json> <subject> <audience>: the token was issued for that subject and audience, and the record doesn't
+# accept it. Checking the issued claims first keeps a failed or empty TokenRequest from passing as a denial.
+denied() {
+  [ "$(jq -r .sub <<<"$1" 2>/dev/null)" = "$2" ] && jq -e --arg a "$3" '.aud | index($a) != null' <<<"$1" >/dev/null 2>&1 && ! matches "$1"
+}
+check "another ServiceAccount in $A doesn't match" 'denied "$(tokenclaims $A impostor)" system:serviceaccount:$A:impostor api://AzureADTokenExchange'
+check "team-b's same-named app (team-b-dev/hello) doesn't match" 'denied "$(tokenclaims team-b-dev hello)" system:serviceaccount:team-b-dev:hello api://AzureADTokenExchange'
+check "the app's own ServiceAccount, for the Kubernetes API audience, doesn't match" 'denied "$(tokenclaims $A hello https://kubernetes.default.svc.cluster.local)" system:serviceaccount:$A:hello https://kubernetes.default.svc.cluster.local'
 check "control: a TokenRequest for the app's own ServiceAccount and the record's audience matches" 'matches "$(tokenclaims $A hello)"'
 # A database's owning app is immutable once set (D-102). The XR is paused, so nothing is composed for it.
 kubectl apply -f - >/dev/null <<YAML
