@@ -5,8 +5,8 @@
 **A versioned Developer Contract on AKS: four promises to app teams, each guarantee tied to the check that proves it.**
 
 <a href="https://github.com/joezuchora/golden-path-k8s/actions/workflows/pr-checks.yaml"><img alt="pr-checks" src="https://github.com/joezuchora/golden-path-k8s/actions/workflows/pr-checks.yaml/badge.svg"></a>
-<a href="docs/developer-contract.md"><img alt="Developer Contract v1.0" src="https://img.shields.io/badge/Developer%20Contract-v1.0-2f6feb"></a>
-<a href="charts/golden-service/Chart.yaml"><img alt="golden-service chart 1.0.0" src="https://img.shields.io/badge/golden--service%20chart-1.0.0-2f6feb"></a>
+<a href="docs/developer-contract.md"><img alt="Developer Contract version" src="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjoezuchora%2Fgolden-path-k8s%2Fmain%2Fcharts%2Fgolden-service%2Fvalues.yaml&query=%24.platform.contractVersion&label=Developer%20Contract&prefix=v&color=2f6feb"></a>
+<a href="charts/golden-service/Chart.yaml"><img alt="golden-service chart version" src="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjoezuchora%2Fgolden-path-k8s%2Fmain%2Fcharts%2Fgolden-service%2FChart.yaml&query=%24.version&label=golden-service%20chart&color=2f6feb"></a>
 <a href="docs/adr/README.md#version-pins"><img alt="Kubernetes 1.37" src="https://img.shields.io/badge/Kubernetes-1.37-326ce5"></a>
 <a href="docs/adr/0003-cilium-ebpf-and-gateway-api.md"><img alt="Gateway API v1.6.1" src="https://img.shields.io/badge/Gateway%20API-v1.6.1-326ce5"></a>
 
@@ -22,7 +22,7 @@ should fulfill it" (F17). The 4 promises come from the blog (F2, F16). Every com
 measured against the CNCF capability domains, and names the AKS-native alternative it was weighed against. **Cilium,
 Chainguard and Cosign are this repo's extensions; the blog doesn't mention them (F1, D-015).**
 
-> **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
+> **Status: Phase 3 of 6. The platform runs on kind: every journey (J1–J5, O1) and platform check passes there
 > (`make e2e-all`); Phase 4 (AKS) is in progress: Terraform and the cloud preflight are built and validated locally, with no live
 > Azure run yet ([tracker](docs/adr/README.md#phase-4-exit-criteria-tracker-d-087)).** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
 > [design evolution](docs/design-evolution.md). What comes next: [roadmap](ROADMAP.md); gotchas already solved:
@@ -97,7 +97,8 @@ A five-minute tour of what the platform proves, each stop with its journey page 
 | 2. A rejected change tells you how to fix it | An unsigned image, a raw manifest or bad values gets a red commit status with what failed, why, the fix and a docs link. The fix is another PR, not cluster access | [J2](docs/journeys/j2-rejected-change.md) · `tests/e2e/j2-rejected-change/` |
 | 3. Self-service dependencies | One PostgreSQL XR API with two backends: CloudNativePG on kind, and Flexible Server on AKS (proven statically so far). The app connects, survives a credential rotation, and leaves nothing behind | [J4](docs/journeys/j4-request-database.md) |
 | 4. Onboarding is one reviewed file | `platform/tenancy/teams/<team>.yaml` creates the team's namespaces, RBAC, quota, default-deny network policy, admission policies and Argo CD project. Cross-tenant access is tested to be denied | [O1](docs/journeys/o1-onboard-team.md) |
-| 5. Decisions are traceable | 100+ logged decisions and 15 ADRs, with every reversal kept along with its reason | [Decision Log](docs/adr/README.md) · [design evolution](docs/design-evolution.md) |
+| 5. An identity without a stored secret | A team declares an `AppIdentity` and opts the app in. The token the app holds matches exactly what its federated credential trusts (issuer, subject, audience), and a token for any other ServiceAccount, team or audience doesn't. kind has no Entra, so the exchange itself is an AKS release gate | [J5](docs/journeys/j5-app-identity.md) · `tests/e2e/j5-app-identity/` |
+| 6. Decisions are traceable | 100+ logged decisions and 15 ADRs, with every reversal kept along with its reason | [Decision Log](docs/adr/README.md) · [design evolution](docs/design-evolution.md) |
 
 **Proof, not prose:** every code PR to `main` runs each journey suite on its own fresh kind platform in CI (`kind-e2e`,
 a required check), and every Kyverno policy has pass and fail tests. To run it yourself on kind (Docker with 8 GiB or
@@ -108,7 +109,7 @@ make doctor                      # prerequisites (PROFILE=local|docs|github|clou
 make kind-up                     # Docker required; on Windows use WSL2 or Git Bash
 make validate                    # static checks
 make test-policies               # kyverno test for every policy (needs network: F35)
-make e2e JOURNEY=<journey-dir>   # one Chainsaw suite on kind, e.g. j1-ship; make e2e-all runs all seven
+make e2e JOURNEY=<journey-dir>   # one Chainsaw suite on kind, e.g. j1-ship; make e2e-all runs all eight
 make kind-down
 ```
 
@@ -237,7 +238,7 @@ Maturity is assessed honestly (currently Provisional / Initial) against both the
 | | |
 |---|---|
 | [Getting started](docs/getting-started.md) | Start here: prerequisites by profile (`make doctor`), setup, and the GitHub fixture for signed images |
-| [Developer Contract v1.0](docs/developer-contract.md) | The promises, the versioned surface, RACI, escape hatches, failure and recovery, and metrics |
+| [Developer Contract](docs/developer-contract.md) | The promises, the versioned surface, RACI, escape hatches, failure and recovery, and metrics |
 | [Journeys](docs/journeys/README.md) | Each end-to-end journey, its contract promise, its exit criterion and its e2e suite |
 | [Architecture](docs/architecture.md) | Diagrams: the contract flow, the network path per profile, and dependency reconciliation |
 | [Policy set v1](docs/policies/README.md) | Every Kyverno policy: what it enforces, why, and how to fix a denial |
