@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-labelledby="t d">
+  <title id="t">golden-path-k8s</title>
+  <desc id="d">golden-path-k8s: Internal Developer Platform on AKS. A gold path links four promises, P1 to P4.</desc>
+  <rect width="1200" height="300" rx="20" fill="#0f172a"/>
+  <path d="M80 236 C 330 236, 380 196, 600 196 S 870 156, 1120 156" fill="none" stroke="#e8b931" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#0f172a" stroke="#e8b931" stroke-width="5">
+    <circle cx="240" cy="232" r="13"/>
+    <circle cx="480" cy="203" r="13"/>
+    <circle cx="720" cy="186" r="13"/>
+    <circle cx="960" cy="163" r="13"/>
+  </g>
+  <g font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" fill="#94a3b8" font-size="18" font-weight="600" text-anchor="middle">
+    <text x="240" y="276">P1</text>
+    <text x="480" y="247">P2</text>
+    <text x="720" y="230">P3</text>
+    <text x="960" y="207">P4</text>
+  </g>
+  <g font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+    <text x="80" y="104" fill="#f8fafc" font-size="64" font-weight="700">golden-path-k8s</text>
+    <text x="82" y="152" fill="#cbd5e1" font-size="28">Internal Developer Platform on AKS</text>
+  </g>
+</svg>
