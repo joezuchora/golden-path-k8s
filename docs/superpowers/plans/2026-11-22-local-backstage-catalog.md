@@ -56,10 +56,10 @@ backstage/app/
 
 ### Task 1: Start the Backstage development app
 
-- [ ] Scaffold the app at `backstage/app` using the [standalone setup](https://backstage.io/docs/getting-started/). Verify the generator's supported runtime, record the resolved scaffolder version, and commit the package manager pin and lockfile.
-- [ ] Configure local catalog registration for fixture services `hello` and `inventory` with distinct owning groups. Keep the local demo identity separate from any deployment authentication configuration.
-- [ ] From `backstage/app`, run `yarn install --immutable`, `yarn tsc`, and `yarn start`. Verify the catalog lists the two services and the Scaffolder opens without cloud or GitHub credentials.
-- [ ] Commit the runnable local app and its setup notes.
+- [x] Scaffold the app at `backstage/app` using the [standalone setup](https://backstage.io/docs/getting-started/). Verify the generator's supported runtime, record the resolved scaffolder version, and commit the package manager pin and lockfile.
+- [x] Configure local catalog registration for fixture services `hello` and `inventory` with distinct owning groups. Keep the local demo identity separate from any deployment authentication configuration.
+- [x] From `backstage/app`, run `yarn install --immutable`, `yarn tsc`, and `yarn start`. Verify the catalog lists the two services and the Scaffolder opens without cloud or GitHub credentials.
+- [x] Commit the runnable local app and its setup notes.
 
 ### Task 2: Resolve and render requests
 
@@ -110,30 +110,30 @@ type CatalogConfig = {
 // renderRequest(resolved: ResolvedRequest): RenderedRequest
 ```
 
-- [ ] Write resolver tests using a Team A caller, Team B caller, two services, and a sandbox and enterprise placement fixture. Assert Azure requests from two authorized teams resolve to one configured subscription in the demo. In the enterprise fixture, resolve the same logical request to an approved landing zone and resolve CloudNativePG to the selected workload group. Test unknown offering, unauthorized caller, wrong environment, wrong-owner target, missing placement and duplicate matching placement.
-- [ ] Write renderer tests for `hello/dev/primary-db` with each offering. Assert the exact path and parsed YAML in the design. Repeating a request must produce identical bytes. Reject uppercase, path traversal, separators, unknown keys and platform-owned fields. Pass the template capability to the resolver from backend registration, so a database template cannot submit a different kind of offering. Accept only lowercase DNS-style segments of up to 63 characters in file path components.
-- [ ] Run `yarn backstage-cli repo test --watch=false` from the app and verify the new tests fail before the functions exist.
-- [ ] Implement strict parsing, membership and environment checks, and a single approved match for `service + environment + offering`. For the simulated enterprise profile, ensure the matched destination authorizes the owner or is explicitly approved for that owner as a shared destination. Emit the five fields from the spec using stable field order. Keep Azure and platform coordinates out of the rendered request.
-- [ ] Rerun tests and `yarn tsc`, then commit the resolver, renderer, and fixtures.
+- [x] Write resolver tests using a Team A caller, Team B caller, two services, and a sandbox and enterprise placement fixture. Assert Azure requests from two authorized teams resolve to one configured subscription in the demo. In the enterprise fixture, resolve the same logical request to an approved landing zone and resolve CloudNativePG to the selected workload group. Test unknown offering, unauthorized caller, wrong environment, wrong-owner target, missing placement and duplicate matching placement.
+- [x] Write renderer tests for `hello/dev/primary-db` with each offering. Assert the exact path and parsed YAML in the design. Repeating a request must produce identical bytes. Reject uppercase, path traversal, separators, unknown keys and platform-owned fields. Pass the template capability to the resolver from backend registration, so a database template cannot submit a different kind of offering. Accept only lowercase DNS-style segments of up to 63 characters in file path components.
+- [x] Run `yarn backstage-cli repo test --watch=false` from the app and verify the new tests fail before the functions exist.
+- [x] Implement strict parsing, membership and environment checks, and a single approved match for `service + environment + offering`. For the simulated enterprise profile, ensure the matched destination authorizes the owner or is explicitly approved for that owner as a shared destination. Emit the five fields from the spec using stable field order. Keep Azure and platform coordinates out of the rendered request.
+- [x] Rerun tests and `yarn tsc`, then commit the resolver, renderer, and fixtures.
 
 ### Task 3: Wire the local Scaffolder action
 
-- [ ] Write an action test with an authorized task initiator and a mocked workspace. Assert it writes the resolved request once. Repeat with a Team B initiator and credentials, owner, or subscription overrides in form input, and assert zero writes on reject.
-- [ ] Register `dependency:renderRequest` with dry-run support. Read the task initiator from backend credentials, resolve their trusted group membership, then invoke the validator and renderer. Write only within the task workspace. Give dry runs a distinct result that reports the generated path.
-- [ ] Register the database template with four fields from `DependencyInput` and that single action. Register no live PR publishing action for this milestone. Use [Scaffolder dry-run guidance](https://backstage.io/docs/features/software-templates/dry-run-testing/).
-- [ ] Run the action test and `yarn tsc`. Run both sample requests through the local Template Editor and inspect the file results. Commit the action and template.
+- [x] Write an action test with an authorized task initiator and a mocked workspace. Assert it writes the resolved request once. Repeat with a Team B initiator and credentials, owner, or subscription overrides in form input, and assert zero writes on reject.
+- [x] Register `dependency:renderRequest` with dry-run support. Read the task initiator from backend credentials, resolve their trusted group membership, then invoke the validator and renderer. Write only within the task workspace. Give dry runs a distinct result that reports the generated path.
+- [x] Register the database template with four fields from `DependencyInput` and that single action. Register no live PR publishing action for this milestone. Use [Scaffolder dry-run guidance](https://backstage.io/docs/features/software-templates/dry-run-testing/).
+- [x] Run the action test and `yarn tsc`. Run both sample requests through the local Template Editor and inspect the file results. Commit the action and template.
 
 ### Task 4: Show the choice, operating owner, and cost assumptions
 
-- [ ] Add UI tests for HorizonDB and CloudNativePG option cards, including ownership, availability, labeled sample pricing, and missing pricing. Verify the in-cluster choice distinguishes allocated capacity from added node spend.
-- [ ] Read the same approved offering list as the backend. Display a region and sizing assumption for managed offerings and resource and incremental capacity assumptions for in-cluster offerings. Keep selection limited to the service's allowed environment and the offering list. The backend repeats the authorization and input checks.
-- [ ] Run UI tests and `yarn tsc`. Capture the two dry-run results and one rejected request as evidence with the commit SHA. Commit the UI and local walkthrough.
+- [x] Add UI tests for HorizonDB and CloudNativePG option cards, including ownership, availability, labeled sample pricing, and missing pricing. Verify the in-cluster choice distinguishes allocated capacity from added node spend.
+- [x] Read the same approved offering list as the backend. Display a region and sizing assumption for managed offerings and resource and incremental capacity assumptions for in-cluster offerings. Keep selection limited to the service's allowed environment and the offering list. The backend repeats the authorization and input checks.
+- [x] Run UI tests and `yarn tsc`. Capture the two dry-run results and one rejected request as evidence with the commit SHA. Commit the UI and local walkthrough.
 
 ### Task 5: Review and automate the local checks
 
-- [ ] Use the repository's existing PR checks as the CI entry point. Add a Backstage-path check that installs from the lockfile, validates app configuration, type-checks, and runs backend and UI tests. Preserve the existing static and kind behavior.
-- [ ] Verify on a clean checkout that the two requests produce the expected files and the denial cases leave no output, with Azure, Kubernetes, and GitHub credentials absent. Run `make verify-docs` and the Backstage check.
-- [ ] Confirm the local proof uses no live integration. The next increment is a PR publish test against a disposable or mocked Git repository with a deterministic request path, idempotent retries, and a conflict on different contents at the same path. Check that direct Git requests get equivalent platform validation before adding any provisioning adapter.
+- [x] Use the repository's existing PR checks as the CI entry point. Add a Backstage-path check that installs from the lockfile, validates app configuration, type-checks, and runs backend and UI tests. Preserve the existing static and kind behavior.
+- [x] Verify on a clean checkout that the two requests produce the expected files and the denial cases leave no output, with Azure, Kubernetes, and GitHub credentials absent. Run `make verify-docs` and the Backstage check.
+- [x] Confirm the local proof uses no live integration. The next increment is a PR publish test against a disposable or mocked Git repository with a deterministic request path, idempotent retries, and a conflict on different contents at the same path. Check that direct Git requests get equivalent platform validation before adding any provisioning adapter.
 
 ## Follow-on work specs
 
