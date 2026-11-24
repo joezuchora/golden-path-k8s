@@ -1,26 +1,95 @@
-# golden-path-k8s
+![golden-path-k8s: Internal Developer Platform on AKS](docs/assets/banner.svg)
 
-A public, production-grade reference Internal Developer Platform (IDP) on AKS. It is organized around one idea from
-the AKS Engineering Blog: "tools shouldn't dictate your developer contract; they should fulfill it" (F17). The
-versioned [Developer Contract](docs/developer-contract.md) (4 promises) is the spine. Every component below exists to
-fulfill one promise, is measured against the CNCF capability domains, and names the AKS-native alternative it was
-weighed against.
+---
 
-> **Status: Phase 3 of 6. The platform runs on kind: every Phase 3 journey (J1–J4, O1) and platform check passes there
+**A versioned Developer Contract on AKS: four promises to app teams, each guarantee tied to the check that proves it.**
+
+<a href="https://github.com/joezuchora/golden-path-k8s/actions/workflows/pr-checks.yaml"><img alt="pr-checks" src="https://github.com/joezuchora/golden-path-k8s/actions/workflows/pr-checks.yaml/badge.svg"></a>
+<a href="docs/developer-contract.md"><img alt="Developer Contract version" src="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjoezuchora%2Fgolden-path-k8s%2Fmain%2Fcharts%2Fgolden-service%2Fvalues.yaml&query=%24.platform.contractVersion&label=Developer%20Contract&prefix=v&color=2f6feb"></a>
+<a href="charts/golden-service/Chart.yaml"><img alt="golden-service chart version" src="https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjoezuchora%2Fgolden-path-k8s%2Fmain%2Fcharts%2Fgolden-service%2FChart.yaml&query=%24.version&label=golden-service%20chart&color=2f6feb"></a>
+<a href="docs/adr/README.md#version-pins"><img alt="Kubernetes 1.37" src="https://img.shields.io/badge/Kubernetes-1.37-326ce5"></a>
+<a href="docs/adr/0003-cilium-ebpf-and-gateway-api.md"><img alt="Gateway API v1.6.1" src="https://img.shields.io/badge/Gateway%20API-v1.6.1-326ce5"></a>
+
+A public, production-grade reference Internal Developer Platform (IDP) on AKS. An app team writes one values file,
+`apps/<app>/<env>.yaml`, with `app`, `env` and a signed `image` digest, and ships by merging a pull request. Team, owner,
+cost center, labels, tags and identity are derived from the team's file (D-017). In return the platform keeps the
+[Developer Contract](docs/developer-contract.md): P1 a place to run · P2 an identity · P3 a way to see what it's doing ·
+P4 a safe way to ship. Nobody runs `kubectl apply`, nobody needs `cluster-admin`, and a rejected change says what
+failed, why, and how to fix it.
+
+It is organized around one idea from the AKS Engineering Blog: "tools shouldn't dictate your developer contract; they
+should fulfill it" (F17). The 4 promises come from the blog (F2, F16). Every component exists to fulfill one promise, is
+measured against the CNCF capability domains, and names the AKS-native alternative it was weighed against. **Cilium,
+Chainguard and Cosign are this repo's extensions; the blog doesn't mention them (F1, D-015).**
+
+> **Status: Phase 3 of 6. The platform runs on kind: every journey (J1–J5, O1) and platform check passes there
 > (`make e2e-all`); Phase 4 (AKS) is in progress: Terraform and the cloud preflight are built and validated locally, with no live
 > Azure run yet ([tracker](docs/adr/README.md#phase-4-exit-criteria-tracker-d-087)).** Quickstarts not yet available are marked *Planned*. Every decision, including reversed ones, is in the [Decision Log](docs/adr/README.md) and
 > [design evolution](docs/design-evolution.md). What comes next: [roadmap](ROADMAP.md); gotchas already solved:
 > [known issues](docs/known-issues.md).
 
-The 4 promises come from the AKS blog (F2, F16). **Cilium, Chainguard and Cosign are this repo's extensions; the blog
-doesn't mention them (F1, D-015).**
+## Contents
 
-## Five-minute tour
+- [Why](#why)
+- [How it works](#how-it-works)
+- [Try it](#try-it)
+- [Compatible with](#compatible-with)
+- [Getting started](#getting-started)
+- [Developer Contract Matrix](#developer-contract-matrix)
+- [CNCF capability-domain coverage](#cncf-capability-domain-coverage)
+- [Documentation](#documentation)
+- [Architecture](#architecture)
+- [Sources](#sources)
+- [Contributing](#contributing)
 
-**What an app team writes:** one values file, `apps/<app>/<env>.yaml`, with `app`, `env` and a signed `image` digest.
-Team, owner, cost center, labels, tags and identity are derived from the team's file (D-017). **What the platform
-promises in return:** the [Developer Contract](docs/developer-contract.md): P1 a place to run · P2 an identity ·
-P3 a way to see what it's doing · P4 a safe way to ship.
+## Why
+
+A platform defined by its tools changes its interface whenever a tool changes. This one fixes the interface first: the
+contract v1 surface is `charts/golden-service` 1.x, the Crossplane XRDs at `v1`, `reusable-build-sign.yaml@v1` and
+Kyverno policy set v1 (D-014). The tools behind it can change; a breaking change to the surface needs a major version, an
+ADR and a migration guide ([ADR-0010](docs/adr/0010-contract-versioning.md)).
+
+Every claim is meant to be checkable. Each guarantee in the contract names the fitness check that proves it, and stays
+*designed* until that check passes. Every phase is proven on kind at zero cost before it runs on AKS (D-016). Every
+decision, including the reversed ones, is logged with its options, its rationale and the AKS-native alternative.
+
+## How it works
+
+```
+PR: apps/<app>/<env>.yaml ─merge─→ Argo CD sync ─→ Kyverno admission ─→ rollout ─→ HTTPRoute (HTTPS)
+    ↑                                   │          signer + caller +       │
+    │                                   ↓          base digest             │
+    │                   XR in tenant namespace             │ deny          │ unhealthy
+    │                   → Crossplane composition           ↓               ↓
+    │                   → Ready: the app connects    commit status, PolicyReport, idp-diagnose
+    │                                                      │
+    └───────────────── fix through Git ← ──────────────────┘
+```
+
+1. **Build.** The app's repo calls `reusable-build-sign.yaml@v1`, which verifies the Chainguard base, builds, scans with
+   Trivy, signs keyless with Cosign, and attests an SPDX SBOM and SLSA provenance to GHCR
+   ([ADR-0005](docs/adr/0005-chainguard-images-and-cosign-enforcement.md)).
+2. **Declare.** The team opens a PR with its `golden-service` values (optional route, dependency and network values
+   included) and, for a dependency, an XR.
+3. **Sync.** On merge, Argo CD syncs the change inside the team's AppProject. Placement selects clusters by capability
+   label, never by name (D-023).
+4. **Admit.** Kyverno binds three things before a pod runs: the signer (the pinned reusable workflow), the caller repo and
+   ref (from signed provenance), and the exact base digest. It fails closed (D-026).
+5. **Provision.** The XR lives in the control cluster's `tenant-<team>-<env>` namespace. A Crossplane v2 composition
+   (`local` on kind, `azure` on AKS) creates the dependency, and its credential flows composed Secret → ESO `PushSecret` →
+   Key Vault → `ExternalSecret`. "Ready" means the app connects, survives a rotation, and leaves nothing behind (D-024).
+6. **Roll out.** The `golden-service` chart renders the app and its `HTTPRoute`; the merge commit gets a green status.
+7. **Recover through Git.** An admission denial comes back as a red commit status and a `PolicyReport` with what failed,
+   why, the fix and a docs link; values that don't render are reported on the attempted commit (D-075). For an
+   unhealthy rollout or a stalled XR, `scripts/idp-diagnose.sh` shows every failure signal in one namespace-scoped
+   command. The fix is another PR, not cluster access.
+
+Tenant isolation is enforced at each backend, never by filtering a UI (D-025), and cross-tenant access is tested to be
+denied.
+
+## Try it
+
+A five-minute tour of what the platform proves, each stop with its journey page and suite:
 
 | Stop | What it shows | Where |
 |---|---|---|
@@ -28,11 +97,68 @@ P3 a way to see what it's doing · P4 a safe way to ship.
 | 2. A rejected change tells you how to fix it | An unsigned image, a raw manifest or bad values gets a red commit status with what failed, why, the fix and a docs link. The fix is another PR, not cluster access | [J2](docs/journeys/j2-rejected-change.md) · `tests/e2e/j2-rejected-change/` |
 | 3. Self-service dependencies | One PostgreSQL XR API with two backends: CloudNativePG on kind, and Flexible Server on AKS (proven statically so far). The app connects, survives a credential rotation, and leaves nothing behind | [J4](docs/journeys/j4-request-database.md) |
 | 4. Onboarding is one reviewed file | `platform/tenancy/teams/<team>.yaml` creates the team's namespaces, RBAC, quota, default-deny network policy, admission policies and Argo CD project. Cross-tenant access is tested to be denied | [O1](docs/journeys/o1-onboard-team.md) |
-| 5. Decisions are traceable | 100+ logged decisions and 15 ADRs, with every reversal kept along with its reason | [Decision Log](docs/adr/README.md) · [design evolution](docs/design-evolution.md) |
+| 5. An identity without a stored secret | A team declares an `AppIdentity` and opts the app in. The token the app holds matches exactly what its federated credential trusts (issuer, subject, audience), and a token for any other ServiceAccount, team or audience doesn't. kind has no Entra, so the exchange itself is an AKS release gate | [J5](docs/journeys/j5-app-identity.md) · `tests/e2e/j5-app-identity/` |
+| 6. Decisions are traceable | 100+ logged decisions and 15 ADRs, with every reversal kept along with its reason | [Decision Log](docs/adr/README.md) · [design evolution](docs/design-evolution.md) |
 
 **Proof, not prose:** every code PR to `main` runs each journey suite on its own fresh kind platform in CI (`kind-e2e`,
-a required check), and every Kyverno policy has pass and fail tests. To run it yourself (Docker with 8 GiB or more):
-`make kind-up && make e2e JOURNEY=j1-ship`.
+a required check), and every Kyverno policy has pass and fail tests. To run it yourself on kind (Docker with 8 GiB or
+more; prerequisites under [Getting started](#getting-started)):
+
+```bash
+make doctor                      # prerequisites (PROFILE=local|docs|github|cloud|all)
+make kind-up                     # Docker required; on Windows use WSL2 or Git Bash
+make validate                    # static checks
+make test-policies               # kyverno test for every policy (needs network: F35)
+make e2e JOURNEY=<journey-dir>   # one Chainsaw suite on kind, e.g. j1-ship; make e2e-all runs all eight
+make kind-down
+```
+
+## Compatible with
+
+✅ Available today · 🗺️ Planned, with the phase that delivers it · ❌ Not in v1
+
+**Cluster profile.** Apps depend only on `HTTPRoute` and `CiliumNetworkPolicy`; the profile changes the `GatewayClass` and
+the dataplane, not the app's manifests (D-005, D-027):
+
+| Profile | Gateway and CNI | Status |
+|---|---|---|
+| kind (local, every PR) | Cilium Gateway, OSS Cilium | ✅ Available (Phase 3): the platform, the policy set and every journey run locally |
+| AKS, `cilium_mode = managed` (default) | Envoy Gateway, Azure CNI Powered by Cilium | 🗺️ Planned (Phase 4): Terraform and the cloud preflight built and validated locally; no live Azure run yet |
+| AKS, `cilium_mode = byo` | Cilium Gateway, OSS Cilium | 🗺️ Planned (Phase 4): clusters are created without a CNI; the OSS Cilium install on AKS isn't built yet, and it runs after `managed` passes |
+
+AKS support is declared only after the network contract suite passes on `managed` and `byo` (D-027) and the identity
+allow/deny gate passes (ADR-0008).
+
+**PostgreSQL backend.** One `PostgreSQLInstance` XR API, one composition per backend (D-024):
+
+| Backend | Status |
+|---|---|
+| CloudNativePG (`local` composition) | ✅ Available (Phase 3): proven on kind (J4) |
+| Azure Database for PostgreSQL Flexible Server (`azure` composition) | 🗺️ Planned (Phase 4): validated and render-tested, not yet run on Azure |
+| Dependencies other than PostgreSQL | ❌ Not in v1 (ADR-0002 catalog expansion) |
+
+**Opt-in add-ons.** Off by default, so the baseline has no extra cost:
+
+| Add-on | Status |
+|---|---|
+| Azure Front Door Premium + WAF with origin lock (`enable_edge_waf`, D-007) | 🗺️ Planned (Phase 4): the flag is refused until its Terraform module exists |
+| L7/FQDN policy profile: ACNS on `managed`, OSS Cilium on `byo` and kind (D-021) | 🗺️ Planned (Phase 4): not exercised on kind yet |
+
+## Getting started
+
+Start with **[docs/getting-started.md](docs/getting-started.md)** and `make doctor`, which checks every prerequisite (D-056):
+a Linux-container engine with at least 8 GiB of memory, cgroup v2 and kernel 5.14 or later, bash 4 or later, GNU make 4 or
+later, and outbound HTTPS. `make tools` installs every other CLI at its pinned, checksum-verified version (D-048,
+[toolchain](docs/toolchain.md)). Then follow [Try it](#try-it); the journeys are described in
+[docs/journeys/](docs/journeys/README.md).
+
+**AKS: *Planned (Phase 4).*** Built and validated locally only, with no live Azure run yet; don't treat these commands as
+a working path until the [Phase 4 tracker](docs/adr/README.md#phase-4-exit-criteria-tracker-d-087) shows live evidence.
+
+```bash
+terraform -chdir=infra/envs/<env> init
+terraform -chdir=infra/envs/<env> plan   # cilium_mode = managed (default) | byo; enable_edge_waf = false (default)
+```
 
 ## Developer Contract Matrix
 
@@ -107,134 +233,33 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 Maturity is assessed honestly (currently Provisional / Initial) against both the CNCF model and Microsoft's capability model:
 [docs/frameworks/maturity-self-assessment.md](docs/frameworks/maturity-self-assessment.md).
 
-## Diagrams
+## Documentation
 
-### 1. Developer Contract flow
+| | |
+|---|---|
+| [Getting started](docs/getting-started.md) | Start here: prerequisites by profile (`make doctor`), setup, and the GitHub fixture for signed images |
+| [Developer Contract](docs/developer-contract.md) | The promises, the versioned surface, RACI, escape hatches, failure and recovery, and metrics |
+| [Journeys](docs/journeys/README.md) | Each end-to-end journey, its contract promise, its exit criterion and its e2e suite |
+| [Architecture](docs/architecture.md) | Diagrams: the contract flow, the network path per profile, and dependency reconciliation |
+| [Policy set v1](docs/policies/README.md) | Every Kyverno policy: what it enforces, why, and how to fix a denial |
+| [Decision Log and ADRs](docs/adr/README.md) | Every decision, the ADRs, phases and exit criteria, verified facts, and version pins |
+| [Design evolution](docs/design-evolution.md) | How and why the design changed, including every reversal |
+| [CNCF capability coverage](docs/frameworks/cncf-capability-coverage.md) | Each of the 13 CNCF domains: status, components and gaps |
+| [Maturity self-assessment](docs/frameworks/maturity-self-assessment.md) | The CNCF and Microsoft maturity models, current level and designed target |
+| [Toolchain](docs/toolchain.md) | Pinned, checksum-verified CLIs and the upgrade path |
+| [Known issues](docs/known-issues.md) | Problems already solved: symptom, cause and fix |
+| [Deployment planning](docs/deployment-planning.md) | Who decides what, and the settings to collect before an AKS bootstrap |
+| [Platform review](docs/platform-review.md) | A Phase 3 review of the platform from four roles |
+| [Roadmap](ROADMAP.md) | What comes next, and why |
 
-A developer supplies only `app` and `env`. Every failure returns to Git with what failed and the next action. Nobody needs
-`cluster-admin`.
+## Architecture
 
-```mermaid
-flowchart LR
-  dev["App team"] -->|"app, env"| tmpl["Backstage template"]
-  tmpl --> pr["Git pull request"]
-  pr --> ci["reusable-build-sign.yaml<br/>verify base, build, Trivy, sign, attest"]
-  ci --> reg[("GHCR<br/>image, signature, SBOM, provenance")]
-  pr -->|"merge"| argo["Argo CD sync<br/>team AppProject"]
-  argo --> adm{"Kyverno admission<br/>signer + caller + base digest"}
-  reg -.->|"verify"| adm
-  adm -->|"allow"| roll["Rollout<br/>golden-service chart"]
-  roll --> route["HTTPRoute<br/>HTTPS URL"]
-  argo --> xr["XR in tenant namespace<br/>control cluster"]
-  xr --> cp["Crossplane composition"]
-  cp -->|"Ready: app connects"| roll
-  adm -->|"deny: what, why, fix, docs link"| fb["PR status, PolicyReport,<br/>Backstage, idp-diagnose"]
-  roll -->|"unhealthy"| fb
-  cp -->|"stalled: XR conditions"| fb
-  fb -->|"fix through Git"| pr
-```
-
-### 2. Network traffic path: `managed` vs. `byo` vs. kind
-
-Apps depend only on `HTTPRoute` and `CiliumNetworkPolicy`. The mode changes the `GatewayClass` and the dataplane, not the
-app's manifests (D-005, D-027).
-
-```mermaid
-flowchart LR
-  client["Client"]
-  subgraph managed["cilium_mode = managed (AKS default)"]
-    afd1["Azure Front Door Premium + WAF<br/>opt-in"] --> eg["Envoy Gateway"]
-    eg --> pod1["App pod"]
-    pol1["Azure CNI Powered by Cilium<br/>L3/L4 default-deny<br/>L7/FQDN only with ACNS"] -.->|"enforces"| pod1
-  end
-  subgraph byo["cilium_mode = byo (AKS)"]
-    afd2["Azure Front Door Premium + WAF<br/>opt-in"] --> cg2["Cilium Gateway"]
-    cg2 --> pod2["App pod"]
-    pol2["OSS Cilium, kube-proxy replacement<br/>L3/L4 default-deny, L7/FQDN, Hubble"] -.->|"enforces"| pod2
-  end
-  subgraph kind["kind (local, every PR)"]
-    cg3["Cilium Gateway"] --> pod3["App pod"]
-    pol3["OSS Cilium, same values as byo<br/>no Front Door"] -.->|"enforces"| pod3
-  end
-  client --> afd1
-  client -->|"WAF disabled"| eg
-  client --> afd2
-  client -->|"WAF disabled"| cg2
-  client --> cg3
-```
-
-With the WAF enabled, Front Door reaches the gateway's internal load balancer through a Private Link origin, and a
-direct request to the origin is refused ([ADR-0004](docs/adr/0004-edge-security-and-waf.md)).
-
-### 3. Crossplane external-resource reconciliation, including the ESO secret path
-
-```mermaid
-flowchart TB
-  subgraph control["Control cluster (kind: the same cluster)"]
-    xr["PostgreSQLInstance XR<br/>namespace tenant-{team}-{env}"] --> comp{"Composition<br/>selected by label"}
-    comp -->|"provider: azure"| mrs["Namespaced MRs<br/>ResourceGroup, FlexibleServer, Vault"]
-    comp -->|"provider: local"| cnpg["CloudNativePG cluster"]
-    comp --> csec["Composed connection Secret"]
-    csec --> push["ESO PushSecret"]
-    idxr["AppIdentity XR"] --> uami["UAMI, federated credential,<br/>role assignment"]
-    mrs -->|"observe, diff, correct drift"| mrs
-  end
-  mrs --> azure[("Azure<br/>per-tenant resource group")]
-  uami --> azure
-  push --> kv[("Key Vault<br/>kind: Kubernetes SecretStore")]
-  subgraph workload["Workload cluster: namespace {team}-{env}"]
-    es["ExternalSecret"] --> wsec["Secret"]
-    wsec --> app["App pod<br/>golden-service"]
-    sa["ServiceAccount<br/>federated to the UAMI"] --> app
-    rel["Reloader"] -.->|"restart on rotation"| app
-  end
-  kv --> es
-  app -->|"Entra token on AKS<br/>brokered password on kind"| db[("PostgreSQL")]
-  azure --- db
-  cnpg --- db
-```
-
-Deletion runs in reverse: `deletionPolicy: Delete`, Crossplane `Usage` for ordering, and the per-tenant resource group as
-the blast-radius boundary. Kind is the one place the identity promise deviates (brokered password instead of federation;
-[ADR-0008](docs/adr/0008-application-workload-identity.md)).
-
-## Quickstarts
-
-### Prerequisites
-
-Start with **[docs/getting-started.md](docs/getting-started.md)** and `make doctor`, which checks every prerequisite (D-056):
-a Linux-container engine with at least 8 GiB of memory, cgroup v2 and kernel 5.14 or later, bash 4 or later, GNU make 4 or
-later, and outbound HTTPS. `make tools` installs every other CLI at its pinned, checksum-verified version (D-048,
-[toolchain](docs/toolchain.md)).
-
-### kind: *Available (Phase 3).* The platform, the policy set and every journey run locally; see [journeys](docs/journeys/README.md).
-
-```bash
-make doctor                      # prerequisites (PROFILE=local|docs|github|cloud|all)
-make kind-up                     # Docker required; on Windows use WSL2 or Git Bash
-make validate                    # static checks
-make test-policies               # kyverno test for every policy (needs network: F35)
-make e2e JOURNEY=<journey-dir>   # one Chainsaw suite on kind; make e2e-all runs all seven
-make kind-down
-```
-
-### AKS: *Planned (Phase 4). These commands don't exist yet.*
-
-```bash
-terraform -chdir=infra/envs/<env> init
-terraform -chdir=infra/envs/<env> plan   # cilium_mode = managed (default) | byo; enable_edge_waf = false (default)
-```
-
-AKS support is declared only after the network contract suite passes on `managed` and `byo` (D-027) and the identity
-allow/deny gate passes (ADR-0008).
-
-## Docs
-
-- [Developer Contract v1.0](docs/developer-contract.md): the promises, the versioned surface, RACI, escape hatches, failure and recovery, and metrics
-- [Decision Log and ADRs](docs/adr/README.md), with phases and exit criteria
-- [Design evolution](docs/design-evolution.md)
-- [CNCF capability coverage](docs/frameworks/cncf-capability-coverage.md) · [Maturity self-assessment](docs/frameworks/maturity-self-assessment.md)
-- Docs check: `bash scripts/verify-docs.sh` (D-035)
+The platform splits into a control cluster and workload clusters: Argo CD, Crossplane and the cloud credentials stay on
+the control cluster, and workload clusters run apps and never hold a cloud credential
+([ADR-0001](docs/adr/0001-control-and-workload-cluster-split.md)). Every cluster, including in-cluster, is a declarative
+Argo CD cluster Secret selected by capability label, so kind runs both roles in one cluster (D-023). Dependencies are
+namespaced Crossplane v2 XRs with an `azure` and a `local` composition (D-024), and the network profile changes the
+dataplane, not the app's manifests (D-027). The diagrams are in **[docs/architecture.md](docs/architecture.md)**.
 
 ## Sources
 
@@ -251,3 +276,11 @@ Each source is cited only for what the Decision Log's verified-facts table recor
 
 Every other technical fact (Cilium, Crossplane, Argo CD, Kyverno, Fulcio, Grafana, Backstage, Chainguard, Gateway API
 conformance) is cited from its own primary source in the Decision Log (F3–F7, F10–F15).
+
+## Contributing
+
+Changes reach `main` only through a pull request, after the `static` and `kind-e2e` checks pass (D-092). A change that
+makes or alters a design decision adds its Decision Log entry in the same PR; an external fact needs an F-entry fetched
+from its primary source; every Kyverno policy needs pass and fail tests, and every journey an e2e suite. Before opening a
+PR, run `make validate`, `make test-policies` and `make verify-docs` (the docs gate, D-035). Items open for contribution
+are marked *help wanted* in the [roadmap](ROADMAP.md).
