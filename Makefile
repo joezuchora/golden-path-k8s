@@ -19,7 +19,7 @@ E2E_DIRS := $(filter-out lib,$(sort $(notdir $(patsubst %/,%,$(wildcard tests/e2
 
 PROFILE ?= local
 
-.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate quick-check test-quick-check test-policies e2e e2e-all verify-docs backstage-check 
+.PHONY: hooks help doctor tools preflight kind-up kind-sync kind-down validate quick-check test-quick-check test-policies e2e e2e-all verify-docs backstage-check \
 	aks-preflight aks-plan aks-up aks-bootstrap aks-down aks-verify-teardown
 
 help: ## List targets
