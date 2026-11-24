@@ -19,3 +19,7 @@ infra/**/*.tfstate
 infra/**/*.tfstate.*
 infra/**/*.auto.tfvars
 infra/**/tfplan*
+
+# Claude Code (D-107): .claude/settings.json and .claude/agents/ are shared; local settings and worktrees are not.
+.claude/settings.local.json
+.claude/worktrees/
