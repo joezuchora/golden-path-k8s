@@ -15,6 +15,7 @@ git clone -q --depth 1 "file://$src" "$R" 2>/dev/null   # works from CI's shallo
 cp "$ROOT/scripts/quick-check.sh" "$R/scripts/quick-check.sh"   # the version under test, committed or not
 cd "$R"
 git config user.email test@example.invalid; git config user.name quick-check-test; git config core.autocrlf false; git config core.eol lf
+git switch -q -c qc-base   # CI checks out a detached merge commit; the cases below need a branch to return to
 git add -A; git commit -qm baseline --allow-empty
 for r in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do git update-ref -d "$r"; done
 git update-ref refs/remotes/origin/main HEAD
@@ -43,15 +44,15 @@ echo "$row" >>docs/adr/README.md;                                         expect
 f3="$(grep -m1 -E '^\| F[0-9] \|' docs/adr/README.md || true)"
 if [ -n "$f3" ]; then echo "$f3" >>docs/adr/README.md;                    expect fail "duplicate single-digit F-ID" "duplicate Decision Log"; fi
 sed -i '0,/^| D-[0-9]\{3\} |/s/| Accepted |/| Accepted (edited) |/' docs/adr/README.md
-git switch -q -c other; git commit -qam other; git update-ref refs/remotes/origin/other HEAD; git switch -q -; git branch -qD other
+git switch -q -c other; git commit -qam other; git update-ref refs/remotes/origin/other HEAD; git switch -q qc-base; git branch -qD other
 sed -i '0,/^| D-[0-9]\{3\} |/s/| Accepted |/| Accepted (edited) |/' docs/adr/README.md
                                                                           expect pass "editing a row (Revisited) isn't a claim"
 add_row() { printf '| %s | 2026-01-01 | test | - | - | - | Proposed | — |\n' "$1" >>docs/adr/README.md; }
-git switch -q -c other; add_row D-998; git commit -qam other; git update-ref refs/remotes/origin/other HEAD; git switch -q -; git branch -qD other
+git switch -q -c other; add_row D-998; git commit -qam other; git update-ref refs/remotes/origin/other HEAD; git switch -q qc-base; git branch -qD other
 add_row D-998;                                                            expect fail "ID claimed on another branch" "D-998 is already claimed on origin/other"
 git switch -q -c mine; add_row D-997; git commit -qam mine; git update-ref refs/remotes/origin/mine HEAD
                                                                           expect pass "own pushed branch isn't a competing claim"
-git switch -q -; git branch -qD mine
+git switch -q qc-base; git branch -qD mine
 reserved="$(grep -m1 -oE '^Reserved D-IDs: D-[0-9]{3}' docs/adr/README.md | grep -oE 'D-[0-9]{3}' || true)"
 if [ -n "$reserved" ] && ! grep -qE "^\| $reserved \|" docs/adr/README.md; then
   add_row "$reserved";                                                    expect fail "ID reserved on main" "$reserved is already claimed on origin/main"
