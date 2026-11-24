@@ -1,4 +1,4 @@
-# Developer Contract v1.0
+# Developer Contract v1.1
 
 | | |
 |---|---|
@@ -151,8 +151,10 @@ let a team run a manual canary through Git.
 
 ### Changelog
 
-**Unreleased: 1.1.** Cut as one release once the `AppIdentity` kind journey passes (ADR-0013); until then the chart stays
-`1.0.0` and the `contract-version` label stays `"1.0"`.
+**1.1 (2026-11-24).** golden-service chart `1.1.0`; the `contract-version` label is `"1.1"` on every app object and
+tenant namespace rendered from now on. Cut once the `AppIdentity` kind journey, J5, passed on `main` (D-109). Additive
+only: a 1.0 values file renders the same objects, with only the label value changed. An app that is synced again moves to 1.1, so the label
+shows adoption (ADR-0007).
 - XRD `AppIdentity` v1: an app's cloud identity, declared in `tenant-<team>-<env>`; its name is the app (D-104).
 - XRD `PostgreSQLInstance`: optional `spec.app`, the database's owning app, immutable once set (D-102, D-104).
 - Policy set: `serviceaccount-matches-app` (Deny). It rejects nothing golden-service renders, which sets the ServiceAccount
