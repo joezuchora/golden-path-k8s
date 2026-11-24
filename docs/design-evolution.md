@@ -299,3 +299,7 @@ uses, which would have let any app in a team name any of the team's databases an
 design, written in parallel, had each database name its one owning app. The owner chose that model (D-102): the database's
 immutable `spec.app` decides the single grant, and AppIdentity names only the app.
 
+The external-link check got stricter about waiting. D-106 added retries with backoff, but a rate-limited host was still
+retried one link at a time, so when docs.cilium.io throttled the shared runner, three of its links failed one after
+another. D-110 makes the check wait what the server asks in `Retry-After`, plus a small buffer, and apply that wait to
+every link on the host.
