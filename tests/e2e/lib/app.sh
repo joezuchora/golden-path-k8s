@@ -41,3 +41,8 @@ wait_status() {
   echo "FAIL: no '$want' commit status from platform/argocd/$app on $repo@$sha. Statuses: $(commit_statuses "$repo" "$sha" | jq -c '[.[] | {context, status, description}]' | cut -c1-500)" >&2
   return 1
 }
+# latest_status <owner/repo> <sha> <application> → the state Git shows for that application's context on the commit:
+# its newest status, from Gitea's combined status (one per context), as the commit's status dot in the UI does.
+latest_status() {
+  gitea GET "/repos/$1/commits/$2/status" | sed '$d' | jq -r --arg c "platform/argocd/$3" '[.statuses[]? | select(.context == $c)][0].status // empty'
+}

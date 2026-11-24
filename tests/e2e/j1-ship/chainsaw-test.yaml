@@ -4,10 +4,10 @@ kind: Test
 metadata:
   name: j1-ship
 spec:
-  timeouts: {exec: 15m}
+  timeouts: {exec: 20m}
   steps:
-    - name: merge, sync, admit, roll out, answer over HTTPS, report success to Git
+    - name: merge, sync, admit, roll out, answer over HTTPS, report success to Git; a second merge keeps the first green
       try:
-        - script: {timeout: 15m, content: bash ./ship.sh}
+        - script: {timeout: 20m, content: bash ./ship.sh}
       cleanup:
         - script: {timeout: 5m, content: bash ./cleanup.sh}
