@@ -53,4 +53,4 @@ platform:
   secretStore: platform        # namespaced SecretStore rendered by tenancy (Key Vault on AKS, local store on kind)
   dependencyEgress: inCluster  # inCluster (kind: CloudNativePG in the tenant namespace) | none (AKS: Phase 4)
   identityEgress: none         # world (AKS: TCP 443 for Microsoft Entra ID, D-105) | none (kind: no Entra to reach)
-  contractVersion: "1.0"
+  contractVersion: "1.1"

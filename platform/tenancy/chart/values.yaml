@@ -1,6 +1,6 @@
 # Set by the tenancy ApplicationSets: the team file is the values file; these come from the cluster Secret.
 capability: ""          # control-plane | workloads
-contractVersion: "1.0"
+contractVersion: "1.1"
 global:
   platform:
     profile: ""
