@@ -1,0 +1,13 @@
+# Journey J5: get an app identity (docs/journeys/j5-app-identity.md). ADR-0013's kind fitness check (D-104, D-105, D-109).
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: j5-app-identity
+spec:
+  timeouts: {exec: 20m}
+  steps:
+    - name: declare, deliver, match the token, deny, delete
+      try:
+        - script: {timeout: 20m, content: bash ./identity.sh}
+      cleanup:
+        - script: {timeout: 5m, content: bash ./cleanup.sh}
