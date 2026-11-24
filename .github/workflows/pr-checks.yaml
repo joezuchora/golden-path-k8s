@@ -52,6 +52,19 @@ jobs:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
+  # The Backstage app (D-101): lockfile install, config check, type check, backend and frontend tests. Needs no
+  # Git, Azure or Kubernetes credential.
+  backstage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: {node-version: "24.22.3"}
+      - run: corepack enable
+      - run: make backstage-check
+
   # One fresh kind platform per suite, in parallel (D-077): wall time is kind-up plus the longest suite, and each suite
   # proves itself on a clean cluster.
   e2e:
@@ -62,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [placement, o1-onboard-team, j1-ship, j2-rejected-change, j3-unhealthy-rollout, j4-request-database, network-contract]
+        suite: [placement, o1-onboard-team, j1-ship, j2-rejected-change, j3-unhealthy-rollout, j4-request-database, j5-app-identity, network-contract]
     env: {SUITE: "${{ matrix.suite }}"}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

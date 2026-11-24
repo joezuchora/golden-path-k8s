@@ -248,8 +248,8 @@ The CNCF model warns about Goodhart's Law (F19). These metrics inform the roadma
 **Identity (ADR-0008) is the one contract promise kind can't deliver as written.** kind has no Entra federation. On kind,
 the chart renders the same ServiceAccount, and the `local` PostgreSQL composition uses a brokered password delivered through
 the local SecretStore. With `identity.enabled`, kind mounts a real projected token, but the identity Secret's IDs are
-placeholders and nothing exchanges the token; ADR-0013's kind check compares the token's issuer and subject with the
-`AppIdentity`'s federation record instead (D-105). Real federation is an **AKS release gate**.
+placeholders and nothing exchanges the token; journey J5 checks the mounted token's issuer, subject and audience against
+the `AppIdentity`'s federation record instead (D-105, D-109). Real federation is an **AKS release gate**.
 
 Related demo limitation (not a promise kind is expected to keep): Backstage on kind uses a read-only service account limited
 to tenant namespaces, because there's no Entra ID. It is labeled as such and **never presented as tenant isolation**.

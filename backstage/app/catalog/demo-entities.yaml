@@ -1,0 +1,61 @@
+# Local demo catalog (Milestone 1 of the dependency catalog). Groups mirror platform/tenancy/teams/<team>.yaml; a
+# service's owner is a team group and its environments must be a subset of that team's envs (checked by the backend).
+# alice and bob are local demo identities for the guest sign-in (app-config.yaml), not deployment users.
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-a
+  description: Team A (platform/tenancy/teams/team-a.yaml)
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-b
+  description: Team B (platform/tenancy/teams/team-b.yaml)
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: alice
+spec:
+  profile: {displayName: Alice (Team A demo user)}
+  memberOf: [team-a]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: bob
+spec:
+  profile: {displayName: Bob (Team B demo user)}
+  memberOf: [team-b]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hello
+  description: The reference golden-path service (apps/hello)
+  annotations:
+    platform.example.org/environments: dev
+spec:
+  type: service
+  lifecycle: experimental
+  owner: team-a
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: inventory
+  description: Team B's sample service, used to prove cross-team denial
+  annotations:
+    platform.example.org/environments: dev
+spec:
+  type: service
+  lifecycle: experimental
+  owner: team-b

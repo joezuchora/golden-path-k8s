@@ -47,6 +47,7 @@ against, and why it wasn't chosen as the default.
 | P1 A place to run | Tenancy render (`platform/tenancy/teams/<team>.yaml`) | One reviewed file creates the team's namespaces, RBAC and ownership labels (D-017, D-028) | Managed namespaces with quota, network policy and RBAC (F16) | Infrastructure services |
 | P1 A place to run | Crossplane v2 (namespaced XRDs + function pipelines, `provider-upjet-azure`) | Declarative, continuously reconciled self-service API that also runs on kind (D-003 → D-024, [ADR-0002](docs/adr/0002-crossplane-v2-external-resources.md)) | ASO alone exposes raw Azure resources; kro is "still pre-1.0" (F17) | APIs for automatically provisioning capabilities |
 | P1 A place to run | PostgreSQL compositions (`azure`: Flexible Server; `local`: CloudNativePG) | One XRD API with two backends; "Ready" means the app connects, survives rotation, and cleans up (D-024) | Azure Database for PostgreSQL through ASO, with no abstraction layer | Data services |
+| P1 A place to run | Backstage dependency catalog (`request-database` template, `dependency:renderRequest`) | A service owner picks a service, environment and approved offering; owner, deploy repository and destination are derived from reviewed metadata and the signed-in user, and placement fails closed (D-101, [ADR-0014](docs/adr/0014-subscription-placement-and-vending.md)). Local preview only: it renders the request file and publishes nothing | Direct Azure portal or CLI access, which bypasses the platform's ownership and placement checks | Web portals for provisioning and observing capabilities |
 | P1 A place to run | Cilium CNI (`managed`: Azure CNI Powered by Cilium; `byo`/kind: OSS Cilium) | Microsoft-supported CNI by default; full Cilium as an opt-in (D-005, [ADR-0003](docs/adr/0003-cilium-ebpf-and-gateway-api.md)) | Managed Cilium allows only label-exclusion changes (F3) | Infrastructure services |
 | P1 A place to run | `CiliumNetworkPolicy` default-deny baseline (L3/L4) | The app's network boundary, provable for free on kind and managed AKS (D-021, D-027, D-029) | Managed-namespace network policy (F16) | Security services |
 | P1 A place to run | Terraform (`infra/`) | The owner's choice for platform foundations; one pinned, checksum-locked CLI (D-088, [ADR-0009](docs/adr/0009-terraform-for-aks-foundations.md)) | Bicep / AVM | Infrastructure services |
@@ -89,7 +90,7 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 
 | # | Domain | v1 status | Delivered by |
 |---|---|---|---|
-| 1 | Web portals for provisioning and observing capabilities | Designed | Backstage |
+| 1 | Web portals for provisioning and observing capabilities | Partial: dependency catalog database request runs as a local preview (D-101); the Kubernetes view is Phase 5 | Backstage |
 | 2 | APIs for automatically provisioning capabilities | Partial: proven on kind (`local` composition, J4); `azure` validated and render-tested, live in Phase 4 | Crossplane v2 XRDs |
 | 3 | Golden path templates and docs | Partial: `golden-service` 1.0.0 proven on kind (J1–J4, network contract); Backstage templates in Phase 5 | `golden-service` chart, Backstage templates, this contract |
 | 4 | Automation for building and testing products | Partial: `reusable-build-sign` proven in CI (build-hello signs, attests and passes its own admission check); [Renovate enabled](docs/toolchain.md#renovate) for selected updates, first run pending verification | `reusable-build-sign.yaml`, Renovate |
@@ -99,7 +100,7 @@ a fitness check. Detail and gaps: [docs/frameworks/cncf-capability-coverage.md](
 | 8 | Infrastructure services | Partial: kind, tenancy, Cilium and the Gateway proven on kind (placement, O1, network contract); AKS and Terraform in Phase 4 | AKS, kind, Cilium, Gateway API, Terraform |
 | 9 | Data services | Partial (PostgreSQL only): proven on kind with CloudNativePG (J4); Azure Flexible Server in Phase 4 | PostgreSQL compositions |
 | 10 | Messaging and event services | **Deferred** (D-033) | — |
-| 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); Workload ID and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
+| 11 | Identity and secret services | Partial: ESO, Reloader and cert-manager proven on kind (J1, J4); the app identity's federation record and projected token proven on kind (J5); Workload ID token exchange and Key Vault in Phase 4 | Workload ID, ESO + Key Vault, cert-manager |
 | 12 | Security services | Partial: the Kyverno policy set, Cosign keyless, Chainguard bases and the network baseline proven (`make test-policies`, J1, J2, network contract); WAF and ACNS in Phase 4, Trivy Operator in Phase 6 | Kyverno, Cosign, Chainguard, Trivy, network policy, WAF |
 | 13 | Artifact storage | Proven: GHCR (build-hello publishes; kind pulls the signed digest anonymously, F48) | GHCR |
 
